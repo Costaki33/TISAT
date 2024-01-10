@@ -94,8 +94,8 @@ def extract_columns(csv_file):
         data = pd.read_csv(csv_file, usecols=columns_to_extract)
 
         # Convert 'Injection Date' and 'Injection End Date' to datetime format
-        data['Injection Date'] = pd.to_datetime(data['Injection Date']).dt.date
-        data['Injection End Date'] = pd.to_datetime(data['Injection End Date']).dt.date
+        data['Injection Date'] = pd.to_datetime(data['Injection Date'])
+        data['Injection End Date'] = pd.to_datetime(data['Injection End Date'])
 
         return data
     except FileNotFoundError:
@@ -129,10 +129,10 @@ def first_quake(data_frame):
 def plot_injection_pressure(injection_data, topN_closest_wells, some_earthquake_origin_date):
     # Convert some_earthquake_origin_date to a datetime object to calculate 6 months before origin date
     some_earthquake_origin_date = datetime.strptime(some_earthquake_origin_date, '%Y-%m-%d')
-    six_months_before = (some_earthquake_origin_date - relativedelta(months=6)).date()
-    print(f"six months before: {six_months_before}")
-    #print(f"injection date: \n{injection_data}\nnewline\ntopN closest wells: {topN_closest_wells}")
-
+    six_months_before = some_earthquake_origin_date - timedelta(days=6 * 30)
+    print(f"Some earthquake: {some_earthquake_origin_date}, type: {type(some_earthquake_origin_date)}")
+    print(f"Six months before: {six_months_before}, type: {type(six_months_before)}")
+    print(f"Injection Date: {injection_data['Injection Date']}, type: {type(injection_data['Injection Date'][0])}")
     # for uic_number, _ in topN_closest_wells:
     #     # Filter injection data by UIC number and within the 6-month range before the earthquake
     #     uic_injection_data = injection_data[(injection_data['UIC Number'] == uic_number) &
