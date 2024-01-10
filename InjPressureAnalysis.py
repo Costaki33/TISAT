@@ -9,6 +9,13 @@ injection_data_file_path = '/home/skevofilaxc/Downloads/injectiondata1624.csv'
 earthquake_data_file_path = '/home/skevofilaxc/Downloads/texnet_events.csv'
 
 
+def bottomhole_pressure_calc(surface_pressure, well_depth):
+    # Method provided by Jim Moore at RRCT that ignores friction loss in the tubing string
+    # Bottomhole pressure = surface pressure + hydrostatic pressure
+    hydrostatic_pressure = 0.465 * well_depth  # 0.465 psi/ft X depth (ft)
+    return surface_pressure + hydrostatic_pressure
+
+
 def haversine_distance(lat1, lon1, lat2, lon2):
     # Earth radius in kilometers
     R = 6371.0
@@ -129,29 +136,21 @@ def first_quake(data_frame):
 def plot_injection_pressure(injection_data, topN_closest_wells, some_earthquake_origin_date):
     # Convert some_earthquake_origin_date to a datetime object to calculate 6 months before origin date
     some_earthquake_origin_date = datetime.strptime(some_earthquake_origin_date, '%Y-%m-%d')
-    six_months_before = some_earthquake_origin_date - timedelta(days=6 * 30)
-    print(f"Some earthquake: {some_earthquake_origin_date}, type: {type(some_earthquake_origin_date)}")
-    print(f"Six months before: {six_months_before}, type: {type(six_months_before)}")
-    print(f"Injection Date: {injection_data['Injection Date']}, type: {type(injection_data['Injection Date'][0])}")
-    # for uic_number, _ in topN_closest_wells:
-    #     # Filter injection data by UIC number and within the 6-month range before the earthquake
-    #     uic_injection_data = injection_data[(injection_data['UIC Number'] == uic_number) &
-    #                                         (injection_data['Injection Date'] >= six_months_before) &
-    #                                         (injection_data['Injection Date'] <= some_earthquake_origin_date)]
-    #     if not uic_injection_data.empty:
-    #         print(f"UIC Injection Data: \n{uic_injection_data}")
-    #     if not uic_injection_data.empty:
-    #         # Group by 'Injection Date' and calculate the average 'Injection Pressure Average PSIG'
-    #         avg_pressure = uic_injection_data.groupby('Injection Date')['Injection Pressure Average PSIG'].mean()
-    #
-    #         # Plotting
-    #         plt.plot(avg_pressure.index, avg_pressure.values, label=f'UIC {uic_number}')
-    #
-    # plt.xlabel('Date')
-    # plt.ylabel('Average Injection Pressure PSIG')
-    # plt.title('Average Injection Pressure Over Time for Closest Wells')
-    # plt.legend()
-    # plt.show()
+    # print(f"Some earthquake: {some_earthquake_origin_date}, type: {type(some_earthquake_origin_date)}")
+    api_injection_data = {}
+    for api_number, _ in topN_closest_wells:
+        matching_api_rows = injection_data[injection_data['API Number'] == api_number]
+        # print(f"Matching Row: {matching_api_rows}")
+        if not matching_api_rows.empty:
+            for i in range(len(matching_api_rows)):
+                index = matching_api_rows.index[i]  # Get the index of the first matching row
+                injection_date = matching_api_rows.loc[index, 'Injection Date'].to_pydatetime()
+                # print(f"Injection Date: {type(injection_date)}")
+
+                if injection_date <= some_earthquake_origin_date:
+                    print("HERE!!!!")
+                    api_injection_data[api_number] = matching_api_rows.loc[index]
+                    print(f"API Injection Data: {api_injection_data}")
 
 
 # Extracting and displaying sorted earthquake data
