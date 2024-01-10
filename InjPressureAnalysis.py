@@ -11,17 +11,14 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371.0
 
     # Convert latitude and longitude from degrees to radians
-    lat1 = radians(lat1)
-    lon1 = radians(lon1)
-    lat2 = radians(lat2)
-    lon2 = radians(lon2)
+    lat1_rad, lon1_rad, lat2_rad, lon2_rad = map(radians, [lat1, lon1, lat2, lon2])
 
     # Calculate differences in coordinates
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
+    dlon = lon2_rad - lon1_rad
+    dlat = lat2_rad - lat1_rad
 
     # Haversine formula to calculate distance
-    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    a = sin(dlat / 2) ** 2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2) ** 2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
 
     # Calculate the distance
@@ -37,8 +34,9 @@ def find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=
         distance = haversine_distance(well_lat, well_lon, earthquake_latitude, earthquake_longitude)
 
         uic_number = well['UIC Number']
-        if uic_number not in closest_wells_dict or distance < closest_wells_dict[uic_number][1]:
-            closest_wells_dict[uic_number] = (uic_number, distance)
+        if distance <= range_km:  # Consider only wells within the specified range
+            if uic_number not in closest_wells_dict or distance < closest_wells_dict[uic_number][1]:
+                closest_wells_dict[uic_number] = (uic_number, distance)
 
     # Sort distances to get the top N closest wells
     closest_wells = sorted(closest_wells_dict.values(), key=lambda x: x[1])[:N]
@@ -47,6 +45,9 @@ def find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=
 
 
 def extract_and_sort_data(csv_file):
+    """
+    Extracts the earthquake event data from its .csv file and sorts by time of occurrence
+    """
     columns_to_extract = [
         'EventID', 'Origin Date', 'Origin Time',
         'Local Magnitude', 'Latitude (WGS84)', 'Longitude (WGS84)'
@@ -72,6 +73,9 @@ def extract_and_sort_data(csv_file):
 
 
 def extract_columns(csv_file):
+    """
+    Extracts specified columns from the injection well data file
+    """
     columns_to_extract = [
         'UIC Number', 'Surface Longitude', 'Surface Latitude',
         'Injection Date', 'Injection End Date',
