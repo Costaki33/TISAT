@@ -30,16 +30,18 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 
 def find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20):
-    distances = []
+    closest_wells_dict = {}
     for index, well in wells_data.iterrows():
         well_lat = well['Surface Latitude']
         well_lon = well['Surface Longitude']
         distance = haversine_distance(well_lat, well_lon, earthquake_latitude, earthquake_longitude)
-        distances.append((index, distance))
+
+        uic_number = well['UIC Number']
+        if uic_number not in closest_wells_dict or distance < closest_wells_dict[uic_number][1]:
+            closest_wells_dict[uic_number] = (uic_number, distance)
 
     # Sort distances to get the top N closest wells
-    distances.sort(key=lambda x: x[1])  # Sort based on distance (ascending order)
-    closest_wells = distances[:N]  # Extract top N closest wells
+    closest_wells = sorted(closest_wells_dict.values(), key=lambda x: x[1])[:N]
 
     return closest_wells
 
