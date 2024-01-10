@@ -36,5 +36,10 @@ submit_button = WebDriverWait(driver, 10).until(
 )
 submit_button.click()
 
-# Pause the execution here to prevent the page from closing
-input("Please close the new page to resume execution.")
+# Wait for the new page to load after submitting the form
+wait = WebDriverWait(driver, 10)
+api_depth_element = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/table[2]/tbody/tr/td/form/table/tbody/tr[2]/td/table/tbody/tr[2]/td/table/tbody/tr[3]/td[10]')))
+
+# Get the text of the API Depth element
+api_depth = api_depth_element.text
+
