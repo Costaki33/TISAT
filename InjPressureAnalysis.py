@@ -3,7 +3,7 @@ from math import radians, sin, cos, sqrt, atan2
 
 # Paths to datasets
 injection_data_file_path = '/home/skevofilaxc/Downloads/injectiondata1624.csv'
-earthquake_data_file_path = '/home/skevofilaxc/PycharmProjects/earthquake-analysis/texnet_events-Mentone-20231128.csv'
+earthquake_data_file_path = '/home/skevofilaxc/Downloads/texnet_events.csv'
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):
@@ -27,6 +27,21 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     # Calculate the distance
     distance = R * c
     return distance
+
+
+def find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20):
+    distances = []
+    for index, well in wells_data.iterrows():
+        well_lat = well['Surface Latitude']
+        well_lon = well['Surface Longitude']
+        distance = haversine_distance(well_lat, well_lon, earthquake_latitude, earthquake_longitude)
+        distances.append((index, distance))
+
+    # Sort distances to get the top N closest wells
+    distances.sort(key=lambda x: x[1])  # Sort based on distance (ascending order)
+    closest_wells = distances[:N]  # Extract top N closest wells
+
+    return closest_wells
 
 
 def extract_and_sort_data(csv_file):
@@ -53,6 +68,7 @@ def extract_and_sort_data(csv_file):
         print("File not found.")
         return None
 
+
 def extract_columns(csv_file):
     columns_to_extract = [
         'UIC Number', 'Surface Longitude', 'Surface Latitude',
@@ -74,11 +90,13 @@ def first_quake(data_frame):
     """
     try:
         first_earthquake = data_frame.iloc[0]  # Extracting the first earthquake
+        first_earthquake_eventid = first_earthquake['EventID']
         first_earthquake_latitude = first_earthquake['Latitude (WGS84)']
         first_earthquake_longitude = first_earthquake['Longitude (WGS84)']
         first_earthquake_origin_date = first_earthquake['Origin Date']
 
         return {
+            'Event ID': first_earthquake_eventid,
             'Latitude': first_earthquake_latitude,
             'Longitude': first_earthquake_longitude,
             'Origin Date': first_earthquake_origin_date
@@ -87,19 +105,24 @@ def first_quake(data_frame):
         print("No earthquake data available.")
         return None
 
-# Extracting and displaying well injection data
-extracted_injection_data = extract_columns(injection_data_file_path)
-if extracted_injection_data is not None:
-    pd.set_option('display.max_columns', None)
-    print(extracted_injection_data.head())
 
 # Extracting and displaying sorted earthquake data
 extracted_and_sorted_earthquake_data = extract_and_sort_data(earthquake_data_file_path)
-if extracted_and_sorted_earthquake_data is not None:
-    print(extracted_and_sorted_earthquake_data.head())
+# Extracting and displaying well injection data
+wells_data = extract_columns(injection_data_file_path)
 
+if wells_data is not None and extracted_and_sorted_earthquake_data is not None:
     # Using the first_quake function to get information about the first earthquake
     first_quake_info = first_quake(extracted_and_sorted_earthquake_data)
     if first_quake_info is not None:
         print("Information about the first earthquake:")
         print(first_quake_info)
+
+        # Extracting earthquake latitude and longitude
+        earthquake_latitude = first_quake_info['Latitude']
+        earthquake_longitude = first_quake_info['Longitude']
+
+        # Finding the top N the closest wells to the earthquake within a range (20 km)
+        top_closest_wells = find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20)
+        print(f"Top closest wells to the earthquake:\n{top_closest_wells}")
+
