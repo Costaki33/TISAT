@@ -2,8 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from math import radians, sin, cos, sqrt, atan2
 from datetime import timedelta, datetime
-
-from dateutil.relativedelta import relativedelta
+from accessAPIDepthOnline import get_api_depth
 
 # Paths to datasets
 injection_data_file_path = '/home/skevofilaxc/Downloads/injectiondata1624.csv'
@@ -41,10 +40,10 @@ def find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=
         well_lon = well['Surface Longitude']
         distance = haversine_distance(well_lat, well_lon, earthquake_latitude, earthquake_longitude)
 
-        uic_number = well['UIC Number']
+        api_number = well['API Number']
         if distance <= range_km:  # Consider only wells within the specified range
-            if uic_number not in closest_wells_dict or distance < closest_wells_dict[uic_number][1]:
-                closest_wells_dict[uic_number] = (uic_number, distance)
+            if api_number not in closest_wells_dict or distance < closest_wells_dict[api_number][1]:
+                closest_wells_dict[api_number] = (api_number, distance)
 
     # Sort distances to get the top N closest wells
     closest_wells = sorted(closest_wells_dict.values(), key=lambda x: x[1])[:N]
@@ -85,9 +84,9 @@ def extract_columns(csv_file):
     Extracts specified columns from the injection well data file
     """
     columns_to_extract = [
-        'UIC Number', 'Surface Longitude', 'Surface Latitude',
+        'API Number', 'Surface Longitude', 'Surface Latitude',
         'Injection Date', 'Injection End Date',
-        'Injection Pressure Average PSIG', 'Injection Pressure Max PSIG'
+        'Injection Pressure Average PSIG'
     ]
 
     try:
@@ -96,6 +95,7 @@ def extract_columns(csv_file):
         # Convert 'Injection Date' and 'Injection End Date' to datetime format
         data['Injection Date'] = pd.to_datetime(data['Injection Date'])
         data['Injection End Date'] = pd.to_datetime(data['Injection End Date'])
+        data['API Number'] = data['API Number'].astype(int)  # Convert API numbers to integers
 
         return data
     except FileNotFoundError:
