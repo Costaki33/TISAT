@@ -1,5 +1,9 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 from math import radians, sin, cos, sqrt, atan2
+from datetime import timedelta, datetime
+
+from dateutil.relativedelta import relativedelta
 
 # Paths to datasets
 injection_data_file_path = '/home/skevofilaxc/Downloads/injectiondata1624.csv'
@@ -88,6 +92,11 @@ def extract_columns(csv_file):
 
     try:
         data = pd.read_csv(csv_file, usecols=columns_to_extract)
+
+        # Convert 'Injection Date' and 'Injection End Date' to datetime format
+        data['Injection Date'] = pd.to_datetime(data['Injection Date']).dt.date
+        data['Injection End Date'] = pd.to_datetime(data['Injection End Date']).dt.date
+
         return data
     except FileNotFoundError:
         print("File not found.")
@@ -116,6 +125,35 @@ def first_quake(data_frame):
         return None
 
 
+# Function to query and plot average injection pressure over time for specific UIC numbers
+def plot_injection_pressure(injection_data, topN_closest_wells, some_earthquake_origin_date):
+    # Convert some_earthquake_origin_date to a datetime object to calculate 6 months before origin date
+    some_earthquake_origin_date = datetime.strptime(some_earthquake_origin_date, '%Y-%m-%d')
+    six_months_before = (some_earthquake_origin_date - relativedelta(months=6)).date()
+    print(f"six months before: {six_months_before}")
+    #print(f"injection date: \n{injection_data}\nnewline\ntopN closest wells: {topN_closest_wells}")
+
+    # for uic_number, _ in topN_closest_wells:
+    #     # Filter injection data by UIC number and within the 6-month range before the earthquake
+    #     uic_injection_data = injection_data[(injection_data['UIC Number'] == uic_number) &
+    #                                         (injection_data['Injection Date'] >= six_months_before) &
+    #                                         (injection_data['Injection Date'] <= some_earthquake_origin_date)]
+    #     if not uic_injection_data.empty:
+    #         print(f"UIC Injection Data: \n{uic_injection_data}")
+    #     if not uic_injection_data.empty:
+    #         # Group by 'Injection Date' and calculate the average 'Injection Pressure Average PSIG'
+    #         avg_pressure = uic_injection_data.groupby('Injection Date')['Injection Pressure Average PSIG'].mean()
+    #
+    #         # Plotting
+    #         plt.plot(avg_pressure.index, avg_pressure.values, label=f'UIC {uic_number}')
+    #
+    # plt.xlabel('Date')
+    # plt.ylabel('Average Injection Pressure PSIG')
+    # plt.title('Average Injection Pressure Over Time for Closest Wells')
+    # plt.legend()
+    # plt.show()
+
+
 # Extracting and displaying sorted earthquake data
 extracted_and_sorted_earthquake_data = extract_and_sort_data(earthquake_data_file_path)
 # Extracting and displaying well injection data
@@ -136,3 +174,6 @@ if wells_data is not None and extracted_and_sorted_earthquake_data is not None:
         top_closest_wells = find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20)
         print(f"Top closest wells to the earthquake:\n{top_closest_wells}")
 
+        # Usage:
+        earthquake_origin_date = first_quake_info['Origin Date']
+        plot_injection_pressure(wells_data, top_closest_wells, earthquake_origin_date)
