@@ -27,6 +27,10 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 
 def find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20):
+    """
+    Finds the closest N wells to a given earthquake within some range km and returns the UIC num and distance (km) of
+    the earthquake from the well
+    """
     closest_wells_dict = {}
     for index, well in wells_data.iterrows():
         well_lat = well['Surface Latitude']
