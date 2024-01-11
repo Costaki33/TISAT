@@ -38,35 +38,63 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 
 def write_earthquake_info_to_file(file_path, earthquake_info, current_earthquake_index):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+
+    # Check if the earthquake information already exists in the file
+    for i, line in enumerate(lines[1:], start=1):  # Skip the header line
+        if earthquake_info['Event ID'] in line:
+            # Update the existing line
+            lines[i] = f"{earthquake_info['Event ID']}, {earthquake_info['Latitude']}, " \
+                       f"{earthquake_info['Longitude']}, {earthquake_info['Origin Date']}, " \
+                       f"{earthquake_info['Origin Time']}, {earthquake_info['Local Magnitude']}, "
+
+            if current_earthquake_index == -1:
+                lines[i] += "N/A, N/A\n"  # No previous earthquake info, so distance and time lag are not applicable
+            else:
+                previous_earthquake_info = get_next_earthquake_info(extracted_and_sorted_earthquake_data,
+                                                                    current_earthquake_index)
+                current_earthquake_datetime = datetime.strptime(
+                    f"{earthquake_info['Origin Date']} {earthquake_info['Origin Time']}", '%Y-%m-%d %H:%M:%S')
+                previous_earthquake_datetime = datetime.strptime(
+                    f"{previous_earthquake_info['Origin Date']} {previous_earthquake_info['Origin Time']}",
+                    '%Y-%m-%d %H:%M:%S')
+
+                distance = haversine_distance(earthquake_info['Latitude'], earthquake_info['Longitude'],
+                                              previous_earthquake_info['Latitude'],
+                                              previous_earthquake_info['Longitude'])
+                time_lag = abs((current_earthquake_datetime - previous_earthquake_datetime).days)
+
+                lines[i] += f"{distance:.2f}, {time_lag}\n"
+
+            # Write the updated lines back to the file
+            with open(file_path, 'w') as file:
+                file.writelines(lines)
+            return
+
+    # If the earthquake information does not exist, append a new line
     with open(file_path, 'a') as file:
-        # Write column headers if the file is empty
-        if file.tell() == 0:
-            file.write("Event ID, Latitude, Longitude, Origin Date, Origin Time, "
-                       "Local Magnitude, Distance between Earthquakes (km), Time Lag between Earthquakes\n")
-
-        # Write earthquake information
-        file.write(f"{earthquake_info['Event ID']}, {earthquake_info['Latitude']}, "
-                   f"{earthquake_info['Longitude']}, {earthquake_info['Origin Date']}, "
-                   f"{earthquake_info['Origin Time']}, {earthquake_info['Local Magnitude']}, ")
-
-        if current_earthquake_index == -1:
-            file.write("N/A, N/A\n")  # No previous earthquake info, so distance and time lag are not applicable
+        if current_earthquake_index == 0:
+            file.write(f"{earthquake_info['Event ID']}, {earthquake_info['Latitude']}, "
+                       f"{earthquake_info['Longitude']}, {earthquake_info['Origin Date']}, "
+                       f"{earthquake_info['Origin Time']}, {earthquake_info['Local Magnitude']}, N/A, N/A\n")
         else:
             previous_earthquake_info = get_next_earthquake_info(extracted_and_sorted_earthquake_data,
                                                                 current_earthquake_index)
-            # Convert dates to datetime objects
             current_earthquake_datetime = datetime.strptime(
                 f"{earthquake_info['Origin Date']} {earthquake_info['Origin Time']}", '%Y-%m-%d %H:%M:%S')
             previous_earthquake_datetime = datetime.strptime(
-                f"{previous_earthquake_info['Origin Date']} {previous_earthquake_info['Origin Time']}", '%Y-%m-%d %H:%M:%S')
-            # Calculate distance between earthquakes in km
+                f"{previous_earthquake_info['Origin Date']} {previous_earthquake_info['Origin Time']}",
+                '%Y-%m-%d %H:%M:%S')
+
             distance = haversine_distance(earthquake_info['Latitude'], earthquake_info['Longitude'],
                                           previous_earthquake_info['Latitude'], previous_earthquake_info['Longitude'])
-
-            # Calculate time lag in days
             time_lag = abs((current_earthquake_datetime - previous_earthquake_datetime).days)
 
-            file.write(f"{distance:.2f}, {time_lag}\n")
+            file.write(f"{earthquake_info['Event ID']}, {earthquake_info['Latitude']}, "
+                       f"{earthquake_info['Longitude']}, {earthquake_info['Origin Date']}, "
+                       f"{earthquake_info['Origin Time']}, {earthquake_info['Local Magnitude']}, "
+                       f"{distance:.2f}, {time_lag}\n")
 
     # Periodically close and reopen the file to flush the content
     if current_earthquake_index % 1 == 0:
@@ -196,7 +224,7 @@ def is_within_one_year(earliest_injection_date, one_year_before_earthquake_date,
     If the injection date doesn't fall within the 1 year range, Return False and write to file
     """
     if earliest_injection_date >= one_year_before_earthquake_date:
-        print("Injection date is not within 1 year prior to the earthquake date, will move onto next earthquake.")
+        print("Injection date is not within 1 year prior to the earthquake date, will move onto next earthquake.\n")
         return False
 
     if earliest_injection_date <= some_earthquake_origin_date:
@@ -231,7 +259,7 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
             earliest_injection_date_index = matching_api_rows.index[0]  # Get the index of the first matching row
             earliest_injection_date = matching_api_rows.loc[
                 earliest_injection_date_index, 'Injection Date'].to_pydatetime()
-            print(f"Injection Date: {earliest_injection_date}")
+            print(f"Earliest Known Injection Date: {earliest_injection_date}")
             if not is_within_one_year(earliest_injection_date, one_year_before_earthquake_date,
                                       some_earthquake_origin_date):
                 # write the ith earthquake info to .txt file with the columns:
@@ -265,7 +293,7 @@ if wells_data is not None and extracted_and_sorted_earthquake_data is not None:
 
         # Finding the top N closest wells to the earthquake within a range (20 km)
         top_closest_wells = find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20)
-        print(f"Top closest wells to the earthquake:\n{top_closest_wells}")
+        #print(f"Top closest wells to the earthquake:\n{top_closest_wells}")
 
         prechecking_injection_pressure(wells_data, top_closest_wells, earthquake_origin_date, i_th_earthquake_info, i)
         current_earthquake_index += 1  # Increment the earthquake index
