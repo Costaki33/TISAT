@@ -1,3 +1,4 @@
+import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 from math import radians, sin, cos, sqrt, atan2
@@ -224,7 +225,8 @@ def is_within_one_year(earliest_injection_date, one_year_before_earthquake_date,
     If the injection date doesn't fall within the 1 year range, Return False and write to file
     """
     if earliest_injection_date >= one_year_before_earthquake_date:
-        print("Injection date is not within 1 year prior to the earthquake date, will move onto next earthquake.\n")
+        print("Injection date is not within 1 year prior to the earthquake date, will move onto next earthquake.\n"
+              "------------------------------------")
         return False
 
     if earliest_injection_date <= some_earthquake_origin_date:
@@ -236,16 +238,39 @@ def process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date
                               i_th_earthquake_info):
     api_injection_data = {}
 
+    # Lists to store data for plotting
+    dates = []
+    pressures = []
+
     for i in range(len(matching_api_rows)):
         index = matching_api_rows.index[i]  # Get the index of the first matching row
         injection_date = matching_api_rows.loc[index, 'Injection Date'].to_pydatetime()
-        print(f"Injection Date: {injection_date}")
 
         if is_within_one_year(injection_date, one_year_before_earthquake_date, some_earthquake_origin_date):
             print("HERE!!!!")
+            write_earthquake_info_to_file('earthquake_info.txt', i_th_earthquake_info, current_earthquake_index - 1)
             api_number = matching_api_rows.loc[index, 'API Number']
-            api_injection_data[api_number] = matching_api_rows.loc[index]
-            print(f"API Injection Data: {api_injection_data}")
+            api_data = matching_api_rows.loc[index].to_dict()  # Convert row to a dictionary
+            api_injection_data[api_number] = api_data
+            average_psig = api_data.get('Injection Pressure Average PSIG')
+            print(f"API Injection Data for API Number {api_number}: {api_data}")
+            print(f"Average PSIG for API Number {api_number}: {average_psig}")
+            api_depth_ft = get_api_depth(api_number)
+            bottomhole_pressure = bottomhole_pressure_calc(average_psig, api_depth_ft)
+
+            # Collect data for plotting
+            dates.append(injection_date)
+            pressures.append(bottomhole_pressure)
+
+    # Plotting
+    plt.plot(dates, pressures, marker='o')
+    plt.xlabel('Injection Date')
+    plt.ylabel('Bottomhole Pressure')
+    plt.title('Bottomhole Pressure Over Time')
+    plt.grid(True)
+    plt.show()
+
+    # return api_injection_data
 
 
 def prechecking_injection_pressure(injection_data, topN_closest_wells, some_earthquake_origin_date,
@@ -259,7 +284,6 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
             earliest_injection_date_index = matching_api_rows.index[0]  # Get the index of the first matching row
             earliest_injection_date = matching_api_rows.loc[
                 earliest_injection_date_index, 'Injection Date'].to_pydatetime()
-            print(f"Earliest Known Injection Date: {earliest_injection_date}")
             if not is_within_one_year(earliest_injection_date, one_year_before_earthquake_date,
                                       some_earthquake_origin_date):
                 # write the ith earthquake info to .txt file with the columns:
@@ -267,9 +291,11 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
                 # and Total Average Surrounding Pressure
                 write_earthquake_info_to_file('earthquake_info.txt', i_th_earthquake_info, current_earthquake_index - 1)
                 return  # Exit the function and move on to the next earthquake
+            # If the earliest injection date falls within the 1 year bounds, send to process all the matching api rows
+            # to only get the ones leading up to and slightly after to the earthquake for pressure calculations
+            process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date,
+                                      some_earthquake_origin_date, i_th_earthquake_info)
 
-    # process_matching_api_rows(matching_api_rows, topN_closest_wells, one_year_before_earthquake_date,
-    #                               some_earthquake_origin_date, i_th_earthquake_info)
 
 
 # Extracting and displaying sorted earthquake data
