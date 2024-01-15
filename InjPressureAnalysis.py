@@ -1,4 +1,4 @@
-import sys
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from math import radians, sin, cos, sqrt, atan2
@@ -6,7 +6,7 @@ from datetime import timedelta, datetime
 from accessAPIDepthOnline import get_api_depth
 
 # Paths to datasets
-injection_data_file_path = '/home/skevofilaxc/Downloads/injectiondata1624.csv'
+injection_data_file_path = '/home/skevofilaxc/Downloads/updated_injectiondata1624.csv'
 earthquake_data_file_path = '/home/skevofilaxc/Downloads/texnet_events.csv'
 
 
@@ -39,6 +39,11 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 
 def write_earthquake_info_to_file(file_path, earthquake_info, current_earthquake_index):
+    if not os.path.exists(file_path):
+        # Create the file if it doesn't exist
+        with open(file_path, 'w') as file:
+            file.write("Event ID, Latitude, Longitude, Origin Date, Origin Time, Local Magnitude, Distance, Time Lag\n")
+
     with open(file_path, 'r') as file:
         lines = file.readlines()
 
