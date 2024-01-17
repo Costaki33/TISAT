@@ -10,6 +10,21 @@ injection_data_file_path = '/home/skevofilaxc/Downloads/updated_injectiondata162
 earthquake_data_file_path = '/home/skevofilaxc/Downloads/texnet_events.csv'
 
 
+def get_starting_index(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+            print(f"Lines: \n{lines}")
+        # Check if there are at least 3 lines in the file
+        if len(lines) >= 3:
+            print(f"Len lines -3 : {len(lines) - 3}")
+            # Get the index of the third-to-last line
+            return len(lines) - 3
+    except FileNotFoundError:
+        pass  # If the file doesn't exist, return 0 as the default starting index
+    return 0
+
+
 # Calculates the pressure at the formation depth using the provided surface pressures
 def bottomhole_pressure_calc(surface_pressure, well_depth):
     # Method provided by Jim Moore at RRCT that ignores friction loss in the tubing string
@@ -42,7 +57,8 @@ def write_earthquake_info_to_file(file_path, earthquake_info, current_earthquake
     if not os.path.exists(file_path):
         # Create the file if it doesn't exist
         with open(file_path, 'w') as file:
-            file.write("Event ID, Latitude, Longitude, Origin Date, Origin Time, Local Magnitude, Distance, Time Lag\n")
+            file.write("Event ID, Latitude, Longitude, Origin Date, Origin Time, Local Magnitude, Distance betwen "
+                       "previous earthquake (KM), Time Lag (Days)\n")
 
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -252,17 +268,15 @@ def process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date
         injection_date = matching_api_rows.loc[index, 'Injection Date'].to_pydatetime()
 
         if is_within_one_year(injection_date, one_year_before_earthquake_date, some_earthquake_origin_date):
-            print("HERE!!!!")
             write_earthquake_info_to_file('earthquake_info.txt', i_th_earthquake_info, current_earthquake_index - 1)
             api_number = matching_api_rows.loc[index, 'API Number']
+            api_number = str(api_number)
             api_data = matching_api_rows.loc[index].to_dict()  # Convert row to a dictionary
             api_injection_data[api_number] = api_data
             average_psig = api_data.get('Injection Pressure Average PSIG')
-            print(f"API Injection Data for API Number {api_number}: {api_data}")
-            print(f"Average PSIG for API Number {api_number}: {average_psig}")
             api_depth_ft = get_api_depth(api_number)
+            api_depth_ft = float(api_depth_ft)
             bottomhole_pressure = bottomhole_pressure_calc(average_psig, api_depth_ft)
-
             # Collect data for plotting
             dates.append(injection_date)
             pressures.append(bottomhole_pressure)
@@ -302,7 +316,6 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
                                       some_earthquake_origin_date, i_th_earthquake_info)
 
 
-
 # Extracting and displaying sorted earthquake data
 extracted_and_sorted_earthquake_data = extract_and_sort_data(earthquake_data_file_path)
 # Extracting and displaying well injection data
@@ -310,7 +323,8 @@ wells_data = extract_columns(injection_data_file_path)
 
 if wells_data is not None and extracted_and_sorted_earthquake_data is not None:
     # Initialize current_earthquake_index
-    current_earthquake_index = 0
+    current_earthquake_index = get_starting_index(
+        '/home/skevofilaxc/PycharmProjects/earthquake-analysis/earthquake_info.txt')
     # Gets the information about the first earthquake (Event ID, Lat/Long, Origin Date/Time, Local Magnitude)
     for i in range(len(extracted_and_sorted_earthquake_data)):
         i_th_earthquake_info = get_next_earthquake_info(extracted_and_sorted_earthquake_data, i)
@@ -324,7 +338,7 @@ if wells_data is not None and extracted_and_sorted_earthquake_data is not None:
 
         # Finding the top N closest wells to the earthquake within a range (20 km)
         top_closest_wells = find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20)
-        #print(f"Top closest wells to the earthquake:\n{top_closest_wells}")
+        # print(f"Top closest wells to the earthquake:\n{top_closest_wells}")
 
         prechecking_injection_pressure(wells_data, top_closest_wells, earthquake_origin_date, i_th_earthquake_info, i)
         current_earthquake_index += 1  # Increment the earthquake index
