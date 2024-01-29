@@ -5,19 +5,19 @@ from math import radians, sin, cos, sqrt, atan2
 from datetime import timedelta, datetime
 from accessAPIDepthOnline import get_api_depth
 
-# Paths to datasets
+# GLOBAL VARIABLES AND FILE PATHS
 injection_data_file_path = '/home/skevofilaxc/Downloads/updated_injectiondata1624.csv'
 earthquake_data_file_path = '/home/skevofilaxc/Downloads/texnet_events.csv'
+output_dir = '/home/skevofilaxc/Documents/earthquake_plots'
+BACKTRACK_EARTHQUAKE_INDEX = 0  # if the get_starting_index is run, we'll set this var to the functions output
 
 
 def get_starting_index(file_path):
     try:
         with open(file_path, 'r') as file:
             lines = file.readlines()
-            print(f"Lines: \n{lines}")
         # Check if there are at least 3 lines in the file
         if len(lines) >= 3:
-            print(f"Len lines -3 : {len(lines) - 3}")
             # Get the index of the third-to-last line
             return len(lines) - 3
     except FileNotFoundError:
@@ -246,8 +246,6 @@ def is_within_one_year(earliest_injection_date, one_year_before_earthquake_date,
     If the injection date doesn't fall within the 1 year range, Return False and write to file
     """
     if earliest_injection_date >= one_year_before_earthquake_date:
-        print("Injection date is not within 1 year prior to the earthquake date, will move onto next earthquake.\n"
-              "------------------------------------")
         return False
 
     if earliest_injection_date <= some_earthquake_origin_date:
@@ -255,13 +253,13 @@ def is_within_one_year(earliest_injection_date, one_year_before_earthquake_date,
         return True
 
 
-def process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date, some_earthquake_origin_date,
-                              i_th_earthquake_info):
+def process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date,
+                              some_earthquake_origin_date, i_th_earthquake_info, output_directory):
     api_injection_data = {}
 
     # Lists to store data for plotting
-    dates = []
-    pressures = []
+    all_dates = []
+    all_pressures = []
 
     for i in range(len(matching_api_rows)):
         index = matching_api_rows.index[i]  # Get the index of the first matching row
@@ -277,19 +275,26 @@ def process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date
             api_depth_ft = get_api_depth(api_number)
             api_depth_ft = float(api_depth_ft)
             bottomhole_pressure = bottomhole_pressure_calc(average_psig, api_depth_ft)
-            # Collect data for plotting
-            dates.append(injection_date)
-            pressures.append(bottomhole_pressure)
 
-    # Plotting
-    plt.plot(dates, pressures, marker='o')
+            # Collect data for plotting
+            all_dates.append(injection_date)
+            all_pressures.append(bottomhole_pressure)
+
+    # Plot all api_numbers on the same plot
+    plt.plot(all_dates, all_pressures, marker='o', label=f'Well API Numbers')
     plt.xlabel('Injection Date')
     plt.ylabel('Bottomhole Pressure')
-    plt.title('Bottomhole Pressure Over Time')
+    plt.title(f'Bottomhole Pressure Over Time for All Wells - Event ID: {i_th_earthquake_info["Event ID"]}')
     plt.grid(True)
-    plt.show()
+    plt.legend()
 
-    # return api_injection_data
+    # Save the plot to a file in the specified output directory
+    plot_filename = f'event_{i_th_earthquake_info["Event ID"]}_bottomhole_pressure_plot.png'
+    plot_filepath = os.path.join(output_directory, plot_filename)
+    plt.savefig(plot_filepath)
+
+    # Close the plot after saving
+    plt.close()
 
 
 def prechecking_injection_pressure(injection_data, topN_closest_wells, some_earthquake_origin_date,
@@ -305,6 +310,9 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
                 earliest_injection_date_index, 'Injection Date'].to_pydatetime()
             if not is_within_one_year(earliest_injection_date, one_year_before_earthquake_date,
                                       some_earthquake_origin_date):
+                print(
+                    "Injection date is not within 1 year prior to the earthquake date, will move onto next earthquake.\n"
+                    "------------------------------------")
                 # write the ith earthquake info to .txt file with the columns:
                 # Event ID, Lat/Long, Origin Date/Time, Local Magnitude, Distance from 1 to 2,
                 # and Total Average Surrounding Pressure
@@ -313,7 +321,7 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
             # If the earliest injection date falls within the 1 year bounds, send to process all the matching api rows
             # to only get the ones leading up to and slightly after to the earthquake for pressure calculations
             process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date,
-                                      some_earthquake_origin_date, i_th_earthquake_info)
+                                      some_earthquake_origin_date, i_th_earthquake_info, output_dir)
 
 
 # Extracting and displaying sorted earthquake data
@@ -323,10 +331,18 @@ wells_data = extract_columns(injection_data_file_path)
 
 if wells_data is not None and extracted_and_sorted_earthquake_data is not None:
     # Initialize current_earthquake_index
-    current_earthquake_index = get_starting_index(
-        '/home/skevofilaxc/PycharmProjects/earthquake-analysis/earthquake_info.txt')
+    current_earthquake_index = 0
+    BACKTRACK_EARTHQUAKE_INDEX = (
+        get_starting_index('/home/skevofilaxc/PycharmProjects/earthquake-analysis/earthquake_info.txt'))
     # Gets the information about the first earthquake (Event ID, Lat/Long, Origin Date/Time, Local Magnitude)
     for i in range(len(extracted_and_sorted_earthquake_data)):
+        # if i (which will be = 0 from the above for loop) != BACKTRACK_EARTHQUAKE_INDEX (which can be either 0 or a num)
+        # set i = BACKTRACK_EARTHQUAKE_INDEX so that we can start iterating from the backtracked index from the .txt file
+        # else leave i alone and iterate as normal
+        # If BACKTRACK_EARTHQUAKE_INDEX is set and i is less than it, skip to the next iteration
+        if BACKTRACK_EARTHQUAKE_INDEX is not None and i < BACKTRACK_EARTHQUAKE_INDEX:
+            continue
+
         i_th_earthquake_info = get_next_earthquake_info(extracted_and_sorted_earthquake_data, i)
         print(f"Information about the current earthquake:")
         print(i_th_earthquake_info, "\n")
