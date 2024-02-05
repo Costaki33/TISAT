@@ -29,6 +29,7 @@ def get_starting_index(file_path):
 def bottomhole_pressure_calc(surface_pressure, well_depth):
     # Method provided by Jim Moore at RRCT that ignores friction loss in the tubing string
     # Bottomhole pressure = surface pressure + hydrostatic pressure
+    # Mud weight: JP Nicot, Jun Ge
     hydrostatic_pressure = 0.465 * well_depth  # 0.465 psi/ft X depth (ft)
     return surface_pressure + hydrostatic_pressure
 
@@ -254,74 +255,104 @@ def is_within_one_year(earliest_injection_date, one_year_before_earthquake_date,
 
 
 def process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date,
-                              some_earthquake_origin_date, i_th_earthquake_info, output_directory):
-    api_injection_data = {}
-
-    # Lists to store data for plotting
-    all_dates = []
-    all_pressures = []
-
+                              some_earthquake_origin_date):
+    total_pressure_per_date = {}  # Dictionary to store total pressure for each date
     for i in range(len(matching_api_rows)):
-        index = matching_api_rows.index[i]  # Get the index of the first matching row
+        index = matching_api_rows.index[i]
         injection_date = matching_api_rows.loc[index, 'Injection Date'].to_pydatetime()
 
         if is_within_one_year(injection_date, one_year_before_earthquake_date, some_earthquake_origin_date):
-            write_earthquake_info_to_file('earthquake_info.txt', i_th_earthquake_info, current_earthquake_index - 1)
             api_number = matching_api_rows.loc[index, 'API Number']
             api_number = str(api_number)
-            api_data = matching_api_rows.loc[index].to_dict()  # Convert row to a dictionary
-            api_injection_data[api_number] = api_data
+            api_data = matching_api_rows.loc[index].to_dict()
             average_psig = api_data.get('Injection Pressure Average PSIG')
             api_depth_ft = get_api_depth(api_number)
-            api_depth_ft = float(api_depth_ft)
-            bottomhole_pressure = bottomhole_pressure_calc(average_psig, api_depth_ft)
 
-            # Collect data for plotting
-            all_dates.append(injection_date)
-            all_pressures.append(bottomhole_pressure)
+            if api_depth_ft and api_depth_ft.strip():  # Check if the string is non-empty after stripping whitespaces
+                api_depth_ft = float(api_depth_ft)
+                bottomhole_pressure = bottomhole_pressure_calc(average_psig, api_depth_ft)
+            else:
+                # Handle the case where api_depth_ft is an empty string
+                print(f"Warning: API Depth for API {api_number} is not available.")
+                bottomhole_pressure = None  # or set it to some default value or handle it according to your requirements
 
-    # Plot all api_numbers on the same plot
-    plt.plot(all_dates, all_pressures, marker='o', label=f'Well API Numbers')
-    plt.xlabel('Injection Date')
-    plt.ylabel('Bottomhole Pressure')
-    plt.title(f'Bottomhole Pressure Over Time for All Wells - Event ID: {i_th_earthquake_info["Event ID"]}')
-    plt.grid(True)
-    plt.legend()
+            # Update total pressure for the corresponding date and earthquake
+            if (some_earthquake_origin_date, injection_date) in total_pressure_per_date:
+                total_pressure_per_date[(some_earthquake_origin_date, injection_date)] += bottomhole_pressure
+            else:
+                total_pressure_per_date[(some_earthquake_origin_date, injection_date)] = bottomhole_pressure
 
-    # Save the plot to a file in the specified output directory
-    plot_filename = f'event_{i_th_earthquake_info["Event ID"]}_bottomhole_pressure_plot.png'
-    plot_filepath = os.path.join(output_directory, plot_filename)
-    plt.savefig(plot_filepath)
-
-    # Close the plot after saving
-    plt.close()
+    return total_pressure_per_date  # Return total pressure data
 
 
 def prechecking_injection_pressure(injection_data, topN_closest_wells, some_earthquake_origin_date,
                                    i_th_earthquake_info, current_earthquake_index):
     some_earthquake_origin_date, one_year_before_earthquake_date = convert_dates(some_earthquake_origin_date)
 
+    # Dictionary to accumulate total pressure for each date
+    total_pressure_data = {}
+
+    has_good_injection_data = False  # Flag to indicate if there is injection data for the earthquake
+
     for api_number, _ in topN_closest_wells:
-        # Gets all the rows with matching api numbers from the well injection data set
         matching_api_rows = injection_data[injection_data['API Number'] == api_number]
+
+        # First checks to see if the matching api rows data for a given api exists
         if not matching_api_rows.empty:
-            earliest_injection_date_index = matching_api_rows.index[0]  # Get the index of the first matching row
+
+            earliest_injection_date_index = matching_api_rows.index[0]
             earliest_injection_date = matching_api_rows.loc[
                 earliest_injection_date_index, 'Injection Date'].to_pydatetime()
+
             if not is_within_one_year(earliest_injection_date, one_year_before_earthquake_date,
                                       some_earthquake_origin_date):
                 print(
                     "Injection date is not within 1 year prior to the earthquake date, will move onto next earthquake.\n"
                     "------------------------------------")
-                # write the ith earthquake info to .txt file with the columns:
-                # Event ID, Lat/Long, Origin Date/Time, Local Magnitude, Distance from 1 to 2,
-                # and Total Average Surrounding Pressure
                 write_earthquake_info_to_file('earthquake_info.txt', i_th_earthquake_info, current_earthquake_index - 1)
-                return  # Exit the function and move on to the next earthquake
-            # If the earliest injection date falls within the 1 year bounds, send to process all the matching api rows
-            # to only get the ones leading up to and slightly after to the earthquake for pressure calculations
-            process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date,
-                                      some_earthquake_origin_date, i_th_earthquake_info, output_dir)
+                break
+
+            # If the earliest injection date falls within the 1 year bounds,
+            # process matching API rows and accumulate total pressure data
+            total_pressure_data[api_number] = process_matching_api_rows(
+                matching_api_rows, one_year_before_earthquake_date,
+                some_earthquake_origin_date)
+            has_good_injection_data = True  # Set the flag to True
+
+    if has_good_injection_data is False:
+        return  # Exit the function and move on to the next earthquake
+    if has_good_injection_data is True:
+        print(f"Total pressure data2: {total_pressure_data}")
+
+        # Print for debugging
+        print("Calling plot_total_pressure")
+        plot_total_pressure(total_pressure_data, i_th_earthquake_info, output_dir)
+
+        # Print for debugging
+        print("After calling plot_total_pressure")
+        write_earthquake_info_to_file('earthquake_info.txt', i_th_earthquake_info, current_earthquake_index)
+
+
+def plot_total_pressure(total_pressure_per_date, earthquake_info, output_directory):
+    print(f"Hi\ntotal pressure per date{total_pressure_per_date}")
+    # Plot the total pressure for each date with legend
+    plt.figure(figsize=(10, 6))
+    for date, total_pressure in total_pressure_per_date.items():
+        plt.plot(date, total_pressure, marker='o', label=f'Pressure on {date}')
+
+    plt.xlabel('Injection Date')
+    plt.ylabel('Total Bottomhole Pressure')
+    plt.title(f'Total Bottomhole Pressure Over Time - Event ID: {earthquake_info["Event ID"]}')
+    plt.grid(True)
+    plt.legend()
+
+    # Save the plot to a file in the specified output directory
+    plot_filename = f'event_{earthquake_info["Event ID"]}_total_pressure_plot.png'
+    plot_filepath = os.path.join(output_directory, plot_filename)
+    plt.savefig(plot_filepath)
+
+    # Close the plot after saving
+    plt.close()
 
 
 # Extracting and displaying sorted earthquake data
