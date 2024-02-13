@@ -21,7 +21,7 @@ def get_starting_index(file_path):
         # Check if there are at least 3 lines in the file
         if len(lines) >= 3:
             # Get the index of the third-to-last line
-            return len(lines) - 3
+            return len(lines) - 1
     except FileNotFoundError:
         pass  # If the file doesn't exist, return 0 as the default starting index
     return 0
@@ -277,23 +277,27 @@ def process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date
         if is_within_one_year(injection_date, one_year_before_earthquake_date, some_earthquake_origin_date):
             api_number = matching_api_rows.loc[index, 'API Number']
             api_number = str(api_number)
-            api_data = matching_api_rows.loc[index].to_dict()
-            average_psig = api_data.get('Injection Pressure Average PSIG')
-            api_depth_ft = get_api_depth(api_number)
+            # Check if the length of api_number is 8 before proceeding
+            if len(api_number) == 8:
+                api_data = matching_api_rows.loc[index].to_dict()
+                average_psig = api_data.get('Injection Pressure Average PSIG')
+                api_depth_ft = get_api_depth(api_number)
 
-            if api_depth_ft and api_depth_ft.strip():  # Check if the string is non-empty after stripping whitespaces
-                api_depth_ft = float(api_depth_ft)
-                bottomhole_pressure = bottomhole_pressure_calc(average_psig, api_depth_ft)
-            else:
-                # Handle the case where api_depth_ft is an empty string
-                print(f"Warning: API Depth for API {api_number} is not available.")
-                bottomhole_pressure = None  # or set it to some default value or handle it according to your requirements
+                if api_depth_ft and api_depth_ft.strip():  # Check if the string is non-empty after stripping whitespaces
+                    api_depth_ft = float(api_depth_ft)
+                    bottomhole_pressure = bottomhole_pressure_calc(average_psig, api_depth_ft)
+                else:
+                    # Handle the case where api_depth_ft is an empty string
+                    print(f"Warning: API Depth for API {api_number} is not available.")
+                    bottomhole_pressure = None  # or set it to some default value or handle it according to your requirements
 
-            # Update total pressure for the corresponding date and earthquake
-            if (some_earthquake_origin_date, injection_date) in total_pressure_per_date:
-                total_pressure_per_date[(some_earthquake_origin_date, injection_date)] += bottomhole_pressure
+                # Update total pressure for the corresponding date and earthquake
+                if (some_earthquake_origin_date, injection_date) in total_pressure_per_date:
+                    total_pressure_per_date[(some_earthquake_origin_date, injection_date)] += bottomhole_pressure
+                else:
+                    total_pressure_per_date[(some_earthquake_origin_date, injection_date)] = bottomhole_pressure
             else:
-                total_pressure_per_date[(some_earthquake_origin_date, injection_date)] = bottomhole_pressure
+                print(f"Warning: Skipping API {api_number} due to invalid length (not equal to 8).")
 
     return total_pressure_per_date  # Return total pressure data
 
@@ -374,7 +378,6 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
             continue
 
         converted_dates = [date for date_tuple in unconverted_tuple_dates for date in date_tuple]
-        # print(f"converted dates: {converted_dates}")
 
         for date, total_pressure in zip(converted_dates, pressures):
             total_pressure_by_date[date] += total_pressure
