@@ -1,9 +1,11 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from math import radians, sin, cos, sqrt, atan2
 from datetime import timedelta, datetime
 from accessAPIDepthOnline import get_api_depth
+from collections import defaultdict
 
 # GLOBAL VARIABLES AND FILE PATHS
 injection_data_file_path = '/home/skevofilaxc/Downloads/updated_injectiondata1624.csv'
@@ -227,6 +229,17 @@ def get_next_earthquake_info(data_frame, current_earthquake_index):
         return None
 
 
+def convert_tuple_dates(unconverted_tuple_dates):
+    """
+    Function turns tuple dates into normal dates for plotting
+    :param date_tuple:
+    :return:
+    """
+    # Convert the tuple of dates to a list of datetime objects
+    converted_dates = [date_tuple[0] for date_tuple in unconverted_tuple_dates]
+    return converted_dates
+
+
 def convert_dates(some_earthquake_origin_date):
     """
     Converts some earthquake origin date and one year before said earthquake origin date to datetime objects for calcs
@@ -322,23 +335,77 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
     if has_good_injection_data is False:
         return  # Exit the function and move on to the next earthquake
     if has_good_injection_data is True:
-        print(f"Total pressure data2: {total_pressure_data}")
+        # for api_number, data in total_pressure_data.items():
+        #     print(f"API Number: {api_number}, Data: {data}\n")
 
-        # Print for debugging
-        print("Calling plot_total_pressure")
         plot_total_pressure(total_pressure_data, i_th_earthquake_info, output_dir)
-
-        # Print for debugging
-        print("After calling plot_total_pressure")
         write_earthquake_info_to_file('earthquake_info.txt', i_th_earthquake_info, current_earthquake_index)
+        print("Moving onto next earthquake.\n------------------------------------")
+        return  # Exit the function and move on to the next earthquake
 
 
-def plot_total_pressure(total_pressure_per_date, earthquake_info, output_directory):
-    print(f"Hi\ntotal pressure per date{total_pressure_per_date}")
-    # Plot the total pressure for each date with legend
+def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
+    # Plot the total pressure for each API with legend
     plt.figure(figsize=(10, 6))
-    for date, total_pressure in total_pressure_per_date.items():
-        plt.plot(date, total_pressure, marker='o', label=f'Pressure on {date}')
+
+    # Create a defaultdict to store the total pressure for each date
+    total_pressure_by_date = defaultdict(float)
+    all_api_nums = []  # list to store all the api numbers for plot label
+
+    # print(f"Total pressure data: \n{total_pressure_data}")
+    # print(f"Earthquake info: {earthquake_info}")
+
+    if not total_pressure_data:
+        print("No data to plot.")
+        return
+
+    # Check if total_pressure_data is a dictionary
+    if not isinstance(total_pressure_data, dict):
+        print("Invalid data format. Expected a dictionary.")
+        return
+
+    for api_number, api_data in total_pressure_data.items():
+        # Flatten the dictionary keys into separate lists
+        try:
+            unconverted_tuple_dates, pressures = zip(*api_data.items())
+            all_api_nums.append(api_number)
+        except (TypeError, ValueError):
+            print(f"Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
+            continue
+
+        converted_dates = [date for date_tuple in unconverted_tuple_dates for date in date_tuple]
+        # print(f"converted dates: {converted_dates}")
+
+        for date, total_pressure in zip(converted_dates, pressures):
+            total_pressure_by_date[date] += total_pressure
+
+    dates, total_pressure_values = zip(*total_pressure_by_date.items())
+
+    # Sort the dates and corresponding pressures by date
+    sorted_data = sorted(zip(dates, total_pressure_values), key=lambda x: x[0])
+
+    # Unpack the sorted data
+    sorted_dates, sorted_total_pressure_values = zip(*sorted_data)
+
+    # Convert datetime objects to strings
+    date_strings = [date.strftime('%Y-%m-%d') for date in sorted_dates]
+
+    # print(f"Dates: {date_strings}\nTotal pressure values: {sorted_total_pressure_values}")
+    plt.plot(date_strings, sorted_total_pressure_values, marker='o', label=',\n'.join([f'API {num}' for num in all_api_nums]))
+
+    # Extract earthquake information
+    origin_date = datetime.strptime(earthquake_info['Origin Date'], '%Y-%m-%d')
+    # Convert origin_date to a numerical representation
+    origin_date_num = mdates.date2num(origin_date)
+    # Convert origin_date_num to a string for consistency
+    origin_date_str = mdates.num2date(origin_date_num).strftime('%Y-%m-%d')
+
+    origin_time = earthquake_info['Origin Time']
+    local_magnitude = earthquake_info['Local Magnitude']
+
+    plt.axvline(x=origin_date_str, color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                      f'\nOrigin Time: {origin_time}'
+                                                                      f'\nLocal Magnitude: {local_magnitude}')
 
     plt.xlabel('Injection Date')
     plt.ylabel('Total Bottomhole Pressure')
@@ -353,6 +420,7 @@ def plot_total_pressure(total_pressure_per_date, earthquake_info, output_directo
 
     # Close the plot after saving
     plt.close()
+    print(f"Pressure plot for earthquake: {earthquake_info['Event ID']} was successfully created.")
 
 
 # Extracting and displaying sorted earthquake data
