@@ -32,8 +32,10 @@ def bottomhole_pressure_calc(surface_pressure, well_depth):
     # Method provided by Jim Moore at RRCT that ignores friction loss in the tubing string
     # Bottomhole pressure = surface pressure + hydrostatic pressure
     # Mud weight: JP Nicot, Jun Ge
-    hydrostatic_pressure = 0.465 * well_depth  # 0.465 psi/ft X depth (ft)
-    return surface_pressure + hydrostatic_pressure
+    hydrostatic_pressure = float(0.465 * well_depth)  # 0.465 psi/ft X depth (ft)
+    print(f"Surface Pressure type: {type(surface_pressure)}\nWell depth type: {type(well_depth)}")
+
+    return float(surface_pressure) + hydrostatic_pressure
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):
@@ -248,35 +250,39 @@ def convert_dates(some_earthquake_origin_date):
     some_earthquake_origin_date = datetime.strptime(some_earthquake_origin_date, '%Y-%m-%d')
 
     # Convert some_earthquake_origin_date to a datetime object to calculate 1 year before origin date
-    one_year_before_earthquake_date = some_earthquake_origin_date - timedelta(days=365)
+    one_year_after_earthquake_date = some_earthquake_origin_date + timedelta(days=365)
 
-    return some_earthquake_origin_date, one_year_before_earthquake_date
+    return some_earthquake_origin_date, one_year_after_earthquake_date
 
 
-def is_within_one_year(earliest_injection_date, one_year_before_earthquake_date, some_earthquake_origin_date):
+def is_within_one_year(injection_date, one_year_after_earthquake_date):
     """
-    Checks to see if the earliest well injection date falls within 1 year prior to the earthquake occurring.
+    Checks to see if a given well injection date falls within 1 year after to the earthquake occurring.
+    We want to do this to see if the injection data is valid in creating a timeline;
+    We don't want to get a timeline after the earthquake occurred, we want prior
     If the injection date falls within the 1 year range, great! Return True for further calculations
     If the injection date doesn't fall within the 1 year range, Return False and write to file
     """
-    if earliest_injection_date >= one_year_before_earthquake_date:
+    print(f"INJECTION DATE: {injection_date}\nONE YEAR AFTER EARTHQUAKE: {one_year_after_earthquake_date}")
+    if injection_date > one_year_after_earthquake_date:
         return False
 
-    if earliest_injection_date <= some_earthquake_origin_date:
+    if injection_date <= one_year_after_earthquake_date:
         print("Injection date is within the specified range.")
         return True
 
 
-def process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date,
+def process_matching_api_rows(matching_api_rows, one_year_after_earthquake_date,
                               some_earthquake_origin_date):
     total_pressure_per_date = {}  # Dictionary to store total pressure for each date
     for i in range(len(matching_api_rows)):
         index = matching_api_rows.index[i]
         injection_date = matching_api_rows.loc[index, 'Injection Date'].to_pydatetime()
 
-        if is_within_one_year(injection_date, one_year_before_earthquake_date, some_earthquake_origin_date):
+        if is_within_one_year(injection_date, one_year_after_earthquake_date):
             api_number = matching_api_rows.loc[index, 'API Number']
             api_number = str(api_number)
+            # print(f"Api number: {api_number}")
             # Check if the length of api_number is 8 before proceeding
             if len(api_number) == 8:
                 api_data = matching_api_rows.loc[index].to_dict()
@@ -304,7 +310,7 @@ def process_matching_api_rows(matching_api_rows, one_year_before_earthquake_date
 
 def prechecking_injection_pressure(injection_data, topN_closest_wells, some_earthquake_origin_date,
                                    i_th_earthquake_info, current_earthquake_index):
-    some_earthquake_origin_date, one_year_before_earthquake_date = convert_dates(some_earthquake_origin_date)
+    some_earthquake_origin_date, one_year_after_earthquake_date = convert_dates(some_earthquake_origin_date)
 
     # Dictionary to accumulate total pressure for each date
     total_pressure_data = {}
@@ -321,10 +327,9 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
             earliest_injection_date = matching_api_rows.loc[
                 earliest_injection_date_index, 'Injection Date'].to_pydatetime()
 
-            if not is_within_one_year(earliest_injection_date, one_year_before_earthquake_date,
-                                      some_earthquake_origin_date):
+            if not is_within_one_year(earliest_injection_date, one_year_after_earthquake_date):
                 print(
-                    "Injection date is not within 1 year prior to the earthquake date, will move onto next earthquake.\n"
+                    "Injection date is not within 1 year of the earthquake date, will move onto next earthquake.\n"
                     "------------------------------------")
                 write_earthquake_info_to_file('earthquake_info.txt', i_th_earthquake_info, current_earthquake_index - 1)
                 break
@@ -332,7 +337,7 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
             # If the earliest injection date falls within the 1 year bounds,
             # process matching API rows and accumulate total pressure data
             total_pressure_data[api_number] = process_matching_api_rows(
-                matching_api_rows, one_year_before_earthquake_date,
+                matching_api_rows, one_year_after_earthquake_date,
                 some_earthquake_origin_date)
             has_good_injection_data = True  # Set the flag to True
 
@@ -395,6 +400,7 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
 
     # print(f"Dates: {date_strings}\nTotal pressure values: {sorted_total_pressure_values}")
     plt.plot(date_strings, sorted_total_pressure_values, marker='o', label=',\n'.join([f'API {num}' for num in all_api_nums]))
+    plt.xticks(rotation=45, ha='right', fontsize=8)  # Adjust the rotation angle as needed
 
     # Extract earthquake information
     origin_date = datetime.strptime(earthquake_info['Origin Date'], '%Y-%m-%d')
