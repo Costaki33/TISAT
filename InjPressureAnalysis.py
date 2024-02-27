@@ -8,9 +8,9 @@ from accessAPIDepthOnline import get_api_depth
 from collections import defaultdict
 
 # GLOBAL VARIABLES AND FILE PATHS
-injection_data_file_path = '/home/skevofilaxc/Downloads/updated_injectiondata1624.csv'
+injection_data_file_path = '/home/skevofilaxc/Documents/earthquake_plots/aajo/good_wells.csv'
 earthquake_data_file_path = '/home/skevofilaxc/Downloads/texnet_events.csv'
-output_dir = '/home/skevofilaxc/Documents/earthquake_plots'
+output_dir = '/home/skevofilaxc/Documents/earthquake_plots/aajo'
 BACKTRACK_EARTHQUAKE_INDEX = 0  # if the get_starting_index is run, we'll set this var to the functions output
 
 
@@ -33,7 +33,6 @@ def bottomhole_pressure_calc(surface_pressure, well_depth):
     # Bottomhole pressure = surface pressure + hydrostatic pressure
     # Mud weight: JP Nicot, Jun Ge
     hydrostatic_pressure = float(0.465 * well_depth)  # 0.465 psi/ft X depth (ft)
-    print(f"Surface Pressure type: {type(surface_pressure)}\nWell depth type: {type(well_depth)}")
 
     return float(surface_pressure) + hydrostatic_pressure
 
@@ -263,7 +262,6 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
     If the injection date falls within the 1 year range, great! Return True for further calculations
     If the injection date doesn't fall within the 1 year range, Return False and write to file
     """
-    print(f"INJECTION DATE: {injection_date}\nONE YEAR AFTER EARTHQUAKE: {one_year_after_earthquake_date}")
     if injection_date > one_year_after_earthquake_date:
         return False
 
@@ -282,7 +280,6 @@ def process_matching_api_rows(matching_api_rows, one_year_after_earthquake_date,
         if is_within_one_year(injection_date, one_year_after_earthquake_date):
             api_number = matching_api_rows.loc[index, 'API Number']
             api_number = str(api_number)
-            # print(f"Api number: {api_number}")
             # Check if the length of api_number is 8 before proceeding
             if len(api_number) == 8:
                 api_data = matching_api_rows.loc[index].to_dict()
@@ -355,7 +352,7 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
 
 def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
     # Plot the total pressure for each API with legend
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(15, 8))
 
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
