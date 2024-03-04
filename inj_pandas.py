@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.dates as mdates
 from math import radians, sin, cos, sqrt, atan2
 from datetime import timedelta, datetime
-from accessAPIDepthOnline import get_api_depth
+from accessAPIDepthOnline import get_api_depth, calculate_mean_api_depth
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 
@@ -29,12 +29,14 @@ def get_starting_index(file_path):
     return 0
 
 
+def fetch_api_depth_for_number(api_number):
+    return api_number, get_api_depth(api_number)
+
 def fetch_api_depth(api_numbers):
     with ProcessPoolExecutor() as executor:
-        # Use executor.map to apply get_api_depth to each API number concurrently
-        results = list(executor.map(get_api_depth, api_numbers))
+        results = list(executor.map(fetch_api_depth_for_number, api_numbers))
 
-    return dict(zip(api_numbers, results))
+    return dict(results)
 
 
 # Calculates the pressure at the formation depth using the provided surface pressures
@@ -280,10 +282,17 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
         return True
 
 
-def process_matching_api_rows(matching_api_rows, one_year_after_earthquake_date, some_earthquake_origin_date):
+def process_matching_api_rows(matching_api_rows, one_year_after_earthquake_date, topN_closest_wells):
     # Fetch API depths for all unique API numbers in matching_api_rows
     unique_api_numbers = matching_api_rows['API Number'].astype(str).unique()
-    api_depths = fetch_api_depth(unique_api_numbers)
+
+    # Filter out API numbers that do not have a length of 8
+    valid_api_numbers = [api for api in unique_api_numbers if len(api) == 8]
+
+    # Fetch API depths only for valid API numbers
+    api_depths = fetch_api_depth(valid_api_numbers)
+    closest_wells_api_nums = [pair[0] for pair in topN_closest_wells]
+    mean_api_depth = calculate_mean_api_depth(closest_wells_api_nums)
 
     total_pressure_per_date = defaultdict(float)
 
@@ -292,11 +301,10 @@ def process_matching_api_rows(matching_api_rows, one_year_after_earthquake_date,
 
         if is_within_one_year(injection_date, one_year_after_earthquake_date):
             api_number = str(row['API Number'])
-
             # Check if the length of api_number is 8 before proceeding
             if len(api_number) == 8:
                 average_psig = row['Injection Pressure Average PSIG']
-
+                # print(f"API NUMBER: {api_number}\nlength: {len(api_number)}")
                 # Use the fetched API depth directly from the dictionary
                 api_depth_ft = api_depths.get(api_number)
 
@@ -305,11 +313,14 @@ def process_matching_api_rows(matching_api_rows, one_year_after_earthquake_date,
                     bottomhole_pressure = bottomhole_pressure_calc(average_psig, api_depth_ft)
                     total_pressure_per_date[injection_date] += bottomhole_pressure
                 else:
-                    print(f"Warning: API Depth for API {api_number} is not available.")
+                    print(f"Warning: API Depth for API {api_number} is not available. Using mean well depth instead...")
                     # Handle the case where api_depth_ft is not available
+                    bottomhole_pressure = bottomhole_pressure_calc(average_psig, mean_api_depth)
+                    total_pressure_per_date[injection_date] += bottomhole_pressure
 
             else:
                 print(f"Warning: Skipping API {api_number} due to invalid length (not equal to 8).")
+                continue
 
     return total_pressure_per_date
 
@@ -335,7 +346,7 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
                 break
 
             total_pressure_data[api_number] = process_matching_api_rows(
-                matching_api_rows, one_year_after_earthquake_date, some_earthquake_origin_date)
+                matching_api_rows, one_year_after_earthquake_date, topN_closest_wells)
             has_good_injection_data = True
 
     if has_good_injection_data:
@@ -390,7 +401,8 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
     # Convert datetime objects to strings
     date_strings = [date.strftime('%Y-%m-%d') for date in sorted_dates]
 
-    plt.plot(date_strings, sorted_total_pressure_values, marker='o', label=',\n'.join([f'API {num}' for num in all_api_nums]))
+    plt.plot(date_strings, sorted_total_pressure_values, marker='o',
+             label=',\n'.join([f'API {num}' for num in all_api_nums]))
     # plt.xticks(rotation=45, ha='right', fontsize=8)  # Adjust the rotation angle as needed
     plt.xticks(np.arange(0, len(date_strings), step=15), rotation=45, ha='right', fontsize=8)
 
