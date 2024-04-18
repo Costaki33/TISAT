@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 import matplotlib.dates as mdates
 from math import radians, sin, cos, sqrt, atan2
 from datetime import timedelta, datetime
@@ -10,8 +11,9 @@ from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 
 # GLOBAL VARIABLES AND FILE PATHS
-injection_data_file_path = '/home/skevofilaxc/Downloads/updated_injectiondata1624.csv'
-earthquake_data_file_path = '/home/skevofilaxc/Downloads/texnet_events.csv'
+injection_data_file_path = '/home/skevofilaxc/Documents/earthquake_data/updated_injectiondata1624.csv'
+earthquake_data_file_path = '/home/skevofilaxc/Documents/earthquake_data/texnet_events.csv'
+strawn_formation_data_file_path = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSNAD27.csv'
 output_dir = '/home/skevofilaxc/Documents/earthquake_plots'
 BACKTRACK_EARTHQUAKE_INDEX = 0  # if the get_starting_index is run, we'll set this var to the functions output
 
@@ -31,6 +33,7 @@ def get_starting_index(file_path):
 
 def fetch_api_depth_for_number(api_number):
     return api_number, get_api_depth(api_number)
+
 
 def fetch_api_depth(api_numbers):
     with ProcessPoolExecutor() as executor:
@@ -69,11 +72,46 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return distance
 
 
+def classify_well_type(well_lat, well_lon, well_depth):
+    """
+    Function classifys well type between either Shallow or Deep based on the Z-depth of the well in comparison to the
+    Z-depth of the closest position of the Strawn Formation
+    :param well_lat:
+    :param well_lon:
+    :param well_depth:
+    :return: 1 or 0 for Deep or Shallow
+    """
+    df = pd.read_csv(strawn_formation_data_file_path, delimiter=',')
+    df['lat_nad27'] = pd.to_numeric(df['lat_nad27'], errors='coerce')
+    df['lon_nad27'] = pd.to_numeric(df['lon_nad27'], errors='coerce')
+
+    # Extract latitude and longitude columns from the DataFrame
+    dataset_latitudes = df['lat_nad27'].values
+    dataset_longitudes = df['lon_nad27'].values
+
+    # Convert well position to numpy array for vectorized operations
+    well_position = np.array([well_lat, well_lon])
+
+    # Convert dataset positions to numpy array for vectorized operations
+    dataset_positions = np.column_stack((dataset_latitudes, dataset_longitudes))
+    # Calculate the Euclidean distance between the well's position and each position in the dataset
+    distances = np.linalg.norm(dataset_positions - well_position, axis=1)
+    # Find the index of the position with the minimum distance
+    closest_index = np.argmin(distances)
+
+    # Get Straw Formation Depth
+    closest_strawn_depth = df['Zft_sstvd'].values[closest_index]
+    if abs(well_depth) + closest_strawn_depth > 0:  # IE it's deeper
+        return 1  # DEEP well type
+    elif abs(well_depth) + closest_strawn_depth < 0:  # IE it's above the S.F.
+        return 0  # Shallow well type
+
+
 def write_earthquake_info_to_file(file_path, earthquake_info, current_earthquake_index):
     if not os.path.exists(file_path):
         # Create the file if it doesn't exist
         with open(file_path, 'w') as file:
-            file.write("Event ID, Latitude, Longitude, Origin Date, Origin Time, Local Magnitude, Distance betwen "
+            file.write("Event ID, Latitude, Longitude, Origin Date, Origin Time, Local Magnitude, Distance between "
                        "previous earthquake (KM), Time Lag (Days)\n")
 
     with open(file_path, 'r') as file:
@@ -283,11 +321,29 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
 
 
 def process_matching_api_rows(matching_api_rows, one_year_after_earthquake_date, topN_closest_wells):
+    """
+    For a given API number, there are all the valid injection rows that need to be processed.
+    We check to see if the api number is valid, IE. length of 8, so that is can be given to the webAPI script.
+    After validating the length, we use the API call to grab the well depth.
+    We calculate using the classify_well_type() what type of well it is (1 for shallow and 0 for deep).
+    We append all this information to a list, which will be used for plotting
+    :param matching_api_rows: a list that has all the injection data ('rows') for a given api number
+    :param one_year_after_earthquake_date: date of 1 year after earthquake occurrence
+    :param topN_closest_wells: the topN closest wells to a given earthquake
+    :return:
+    """
     # Fetch API depths for all unique API numbers in matching_api_rows
+    # This is a single API number that is being processed
     unique_api_numbers = matching_api_rows['API Number'].astype(str).unique()
-
     # Filter out API numbers that do not have a length of 8
     valid_api_numbers = [api for api in unique_api_numbers if len(api) == 8]
+
+    # Filter the API data based on the valid_api_numbers and get Surface Lat and Long for Well Classification
+    filtered_rows = matching_api_rows[matching_api_rows['API Number'].astype(str).isin(valid_api_numbers)]
+    surface_long_lat = filtered_rows[['Surface Longitude', 'Surface Latitude']]
+    one_long_lat = surface_long_lat.iloc[0]
+    surface_longitude = one_long_lat['Surface Longitude']
+    surface_latitude = one_long_lat['Surface Latitude']
 
     # Fetch API depths only for valid API numbers
     api_depths = fetch_api_depth(valid_api_numbers)
@@ -304,19 +360,21 @@ def process_matching_api_rows(matching_api_rows, one_year_after_earthquake_date,
             # Check if the length of api_number is 8 before proceeding
             if len(api_number) == 8:
                 average_psig = row['Injection Pressure Average PSIG']
-                # print(f"API NUMBER: {api_number}\nlength: {len(api_number)}")
                 # Use the fetched API depth directly from the dictionary
                 api_depth_ft = api_depths.get(api_number)
-
                 if api_depth_ft is not None:
                     api_depth_ft = float(api_depth_ft)
                     bottomhole_pressure = bottomhole_pressure_calc(average_psig, api_depth_ft)
+                    well_type = classify_well_type(surface_latitude, surface_longitude, api_depth_ft)
                     total_pressure_per_date[injection_date] += bottomhole_pressure
+                    total_pressure_per_date["TYPE"] = well_type
                 else:
                     print(f"Warning: API Depth for API {api_number} is not available. Using mean well depth instead...")
                     # Handle the case where api_depth_ft is not available
                     bottomhole_pressure = bottomhole_pressure_calc(average_psig, mean_api_depth)
+                    well_type = classify_well_type(surface_latitude, surface_longitude, mean_api_depth)
                     total_pressure_per_date[injection_date] += bottomhole_pressure
+                    total_pressure_per_date["TYPE"] = well_type
 
             else:
                 print(f"Warning: Skipping API {api_number} due to invalid length (not equal to 8).")
@@ -327,16 +385,34 @@ def process_matching_api_rows(matching_api_rows, one_year_after_earthquake_date,
 
 def prechecking_injection_pressure(injection_data, topN_closest_wells, some_earthquake_origin_date,
                                    i_th_earthquake_info, current_earthquake_index):
+    """
+    Function checks the injection data for the closest wells to a given earthquake to see if the injection data
+    is 'valid', IE. it falls between the origin date of the injection dataset and up to a year post-earthquake,
+    so we can see if we should throw out a well in our plotting
+
+    Function moves onto process_matching_api_rows() if the injection data is valid
+
+    :param injection_data: all injection data from CSV file
+    :param topN_closest_wells: the topN closest wells to a given earthquake found via haversine function
+    :param some_earthquake_origin_date: the earthquake origin date
+    :param i_th_earthquake_info: earthquake information (including long, lat, magnitude, etc.)
+    :param current_earthquake_index: the number earthquake that is being reviewed/iterated
+    :return: either move to process_matching_api_rows() or skip to next earthquake
+    """
     some_earthquake_origin_date, one_year_after_earthquake_date = convert_dates(some_earthquake_origin_date)
 
     total_pressure_data = {}
 
-    has_good_injection_data = False
+    has_good_injection_data = False  # 'Good injection data' meaning that the available injection data falls within any
+    # time before the earthquake occurring to 1-year after, which gives us a good sample size for analysis
 
     for api_number, _ in topN_closest_wells:
+        # Check to see if the injection data for a given api number matches the api number
+        # Avoids cross contaminating between api-based injection data
         matching_api_rows = injection_data[injection_data['API Number'] == api_number]
 
         if not matching_api_rows.empty:
+            # Get earliest injection date
             earliest_injection_date = matching_api_rows['Injection Date'].min().to_pydatetime()
 
             if not is_within_one_year(earliest_injection_date, one_year_after_earthquake_date):
@@ -347,6 +423,8 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
 
             total_pressure_data[api_number] = process_matching_api_rows(
                 matching_api_rows, one_year_after_earthquake_date, topN_closest_wells)
+            print(f"TOTAL PRESSURE DATA\n{total_pressure_data}")
+            time.sleep(450)
             has_good_injection_data = True
 
     if has_good_injection_data:
