@@ -496,6 +496,23 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
                 if date != 'TYPE':
                     shallow_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
 
+    # Save deep well pressure data to a text file
+    deep_filename = os.path.join(output_directory, f'deep_well_pressure_data_{earthquake_info["Event ID"]}.txt')
+    with open(deep_filename, 'w') as f:
+        f.write("Date\tAPI Number\tPressure (PSI)\n")
+        for date, pressure_points in deep_pressure_data.items():
+            for api_number, pressure in pressure_points:
+                f.write(f"{date}\t{api_number}\t{pressure}\n")
+
+    # Save shallow well pressure data to a text file
+    shallow_filename = os.path.join(output_directory,
+                                    f'shallow_well_pressure_data_{earthquake_info["Event ID"]}.txt')
+    with open(shallow_filename, 'w') as f:
+        f.write("Date\tAPI Number\tPressure (PSI)\n")
+        for date, pressure_points in shallow_pressure_data.items():
+            for api_number, pressure in pressure_points:
+                f.write(f"{date}\t{api_number}\t{pressure}\n")
+
     # Plot deep well data
     plt.figure(figsize=(20, 8))
     api_color_map = {}  # Dictionary to map API numbers to colors
