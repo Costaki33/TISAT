@@ -25,7 +25,7 @@ def get_starting_index(file_path):
         # Check if there are at least 3 lines in the file
         if len(lines) >= 3:
             # Get the index of the third-to-last line
-            return len(lines) - 1
+            return len(lines)
     except FileNotFoundError:
         pass  # If the file doesn't exist, return 0 as the default starting index
     return 0
@@ -497,7 +497,7 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
                     shallow_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
 
     # Plot deep well data
-    plt.figure(figsize=(13, 6))
+    plt.figure(figsize=(20, 8))
     api_color_map = {}  # Dictionary to map API numbers to colors
     api_legend_map = {}  # Dictionary to map API numbers to legend labels
     for date, pressure_points in deep_pressure_data.items():
@@ -522,21 +522,19 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
 
     # Get the x-axis limits to ensure the vertical line is within the plot range
     x_min, x_max = plt.xlim()
-    print(f"x_min {x_min}\nx_max {x_max}\norigin date num: {origin_date_num}")
 
     # Specify the x-coordinate of the vertical line within the plot range
     if x_min <= origin_date_num <= x_max:
-        plt.axvline(x=origin_date_num, color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+        plt.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(plt.Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
                                                                           f'\nOrigin Time: {origin_time}'
                                                                           f'\nOrigin Date: {origin_date_str}'
-                                                                          f'\nLocal Magnitude: {local_magnitude}',
-                    zorder=2)
-
+                                                                          f'\nLocal Magnitude: {local_magnitude}'))
     plt.title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Deep Well')
     plt.xlabel('Injection Date')
-    plt.ylabel('Total Bottomhole Pressure')
+    plt.ylabel('Total Bottomhole Pressure (PSI)')
     plt.grid(True)
-    plt.legend(handles=legend_handles, loc='upper right', bbox_to_anchor=(1, 1), fontsize=10)
+    plt.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
     plt.xticks(rotation=45, ha='right', fontsize=8)
 
     plot_filename = f'event_{earthquake_info["Event ID"]}_deep_well_total_pressure_plot.png'
@@ -545,7 +543,7 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
     plt.close()
 
     # Plot shallow well data
-    plt.figure(figsize=(13, 6))
+    plt.figure(figsize=(20, 8))
     api_color_map = {}  # Reset API color map for shallow well plot
     api_legend_map = {}  # Reset API legend map for shallow well plot
     for date, pressure_points in shallow_pressure_data.items():
@@ -566,17 +564,16 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
 
     # Specify the x-coordinate of the vertical line within the plot range
     if x_min <= origin_date_num <= x_max:
-        plt.axvline(x=origin_date_num, color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                          f'\nOrigin Time: {origin_time}'
-                                                                          f'\nOrigin Date: {origin_date_str}'
-                                                                          f'\nLocal Magnitude: {local_magnitude}',
-                    zorder=2)
-
+        plt.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(plt.Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                                  f'\nOrigin Time: {origin_time}'
+                                                                                  f'\nOrigin Date: {origin_date_str}'
+                                                                                  f'\nLocal Magnitude: {local_magnitude}'))
     plt.title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Shallow Well')
     plt.xlabel('Injection Date')
-    plt.ylabel('Total Bottomhole Pressure')
+    plt.ylabel('Total Bottomhole Pressure (PSI)')
     plt.grid(True)
-    plt.legend(handles=legend_handles, loc='upper right', bbox_to_anchor=(1, 1), fontsize=10)
+    plt.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
     plt.xticks(rotation=45, ha='right', fontsize=8)
 
     plot_filename = f'event_{earthquake_info["Event ID"]}_shallow_well_total_pressure_plot.png'
@@ -602,9 +599,9 @@ if wells_data is not None and extracted_and_sorted_earthquake_data is not None:
             continue
 
         i_th_earthquake_info = get_next_earthquake_info(extracted_and_sorted_earthquake_data, i)
+
         print(f"Information about the current earthquake:")
         print(i_th_earthquake_info, "\n")
-
         earthquake_latitude = i_th_earthquake_info['Latitude']
         earthquake_longitude = i_th_earthquake_info['Longitude']
         earthquake_origin_date = i_th_earthquake_info['Origin Date']
