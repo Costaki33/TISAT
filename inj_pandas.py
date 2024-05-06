@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 import matplotlib.dates as mdates
+import datetime
 from math import radians, sin, cos, sqrt, atan2
-from datetime import timedelta, datetime
 from accessAPIDepthOnline import get_api_depth, calculate_mean_api_depth
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
@@ -130,9 +130,9 @@ def write_earthquake_info_to_file(file_path, earthquake_info, current_earthquake
             else:
                 previous_earthquake_info = get_next_earthquake_info(extracted_and_sorted_earthquake_data,
                                                                     current_earthquake_index)
-                current_earthquake_datetime = datetime.strptime(
+                current_earthquake_datetime = datetime.datetime.strptime(
                     f"{earthquake_info['Origin Date']} {earthquake_info['Origin Time']}", '%Y-%m-%d %H:%M:%S')
-                previous_earthquake_datetime = datetime.strptime(
+                previous_earthquake_datetime = datetime.datetime.strptime(
                     f"{previous_earthquake_info['Origin Date']} {previous_earthquake_info['Origin Time']}",
                     '%Y-%m-%d %H:%M:%S')
 
@@ -157,9 +157,9 @@ def write_earthquake_info_to_file(file_path, earthquake_info, current_earthquake
         else:
             previous_earthquake_info = get_next_earthquake_info(extracted_and_sorted_earthquake_data,
                                                                 current_earthquake_index)
-            current_earthquake_datetime = datetime.strptime(
+            current_earthquake_datetime = datetime.datetime.strptime(
                 f"{earthquake_info['Origin Date']} {earthquake_info['Origin Time']}", '%Y-%m-%d %H:%M:%S')
-            previous_earthquake_datetime = datetime.strptime(
+            previous_earthquake_datetime = datetime.datetime.strptime(
                 f"{previous_earthquake_info['Origin Date']} {previous_earthquake_info['Origin Time']}",
                 '%Y-%m-%d %H:%M:%S')
 
@@ -296,10 +296,10 @@ def convert_dates(some_earthquake_origin_date):
     Converts some earthquake origin date and one year before said earthquake origin date to datetime objects for calcs
     """
     # Convert some_earthquake_origin_date to a datetime object
-    some_earthquake_origin_date = datetime.strptime(some_earthquake_origin_date, '%Y-%m-%d')
+    some_earthquake_origin_date = datetime.datetime.strptime(some_earthquake_origin_date, '%Y-%m-%d')
 
     # Convert some_earthquake_origin_date to a datetime object to calculate 1 year before origin date
-    one_year_after_earthquake_date = some_earthquake_origin_date + timedelta(days=365)
+    one_year_after_earthquake_date = some_earthquake_origin_date + datetime.timedelta(days=365)
 
     return some_earthquake_origin_date, one_year_after_earthquake_date
 
@@ -316,7 +316,7 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
         return False
 
     if injection_date <= one_year_after_earthquake_date:
-        print("Injection date is within the specified range.")
+        # print("Injection date is within the specified range.")
         return True
 
 
@@ -338,9 +338,15 @@ def process_matching_api_rows(matching_api_rows, one_year_after_earthquake_date,
     # Filter out API numbers that do not have a length of 8
     valid_api_numbers = [api for api in unique_api_numbers if len(api) == 8]
 
+    if not valid_api_numbers:
+        print("Warning: No valid API numbers found.\n")
+        return
+
     # Filter the API data based on the valid_api_numbers and get Surface Lat and Long for Well Classification
     filtered_rows = matching_api_rows[matching_api_rows['API Number'].astype(str).isin(valid_api_numbers)]
     surface_long_lat = filtered_rows[['Surface Longitude', 'Surface Latitude']]
+    # print(f"valid api num: {valid_api_numbers}")
+    # print(f"surface long lat: {surface_long_lat}")
     one_long_lat = surface_long_lat.iloc[0]
     surface_longitude = one_long_lat['Surface Longitude']
     surface_latitude = one_long_lat['Surface Latitude']
@@ -423,8 +429,6 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
 
             total_pressure_data[api_number] = process_matching_api_rows(
                 matching_api_rows, one_year_after_earthquake_date, topN_closest_wells)
-            print(f"TOTAL PRESSURE DATA\n{total_pressure_data}")
-            time.sleep(450)
             has_good_injection_data = True
 
     if has_good_injection_data:
@@ -435,16 +439,11 @@ def prechecking_injection_pressure(injection_data, topN_closest_wells, some_eart
 
 
 def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
-    # Plot the total pressure for each API with legend
-    plt.figure(figsize=(20, 8))
-
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
+    deep_pressure_data = defaultdict(list)
+    shallow_pressure_data = defaultdict(list)
     all_api_nums = []  # list to store all the api numbers for plot label
-
-    # print(f"Total pressure data: \n{total_pressure_data}")
-    # print(f"Earthquake info: {earthquake_info}")
-
     if not total_pressure_data:
         print("No data to plot.")
         return
@@ -453,6 +452,8 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
     if not isinstance(total_pressure_data, dict):
         print("Invalid data format. Expected a dictionary.")
         return
+
+    # print(f"TOTAL PRESSURE data: \n{total_pressure_data}")
 
     for api_number, api_data in total_pressure_data.items():
         # Flatten the dictionary keys into separate lists
@@ -466,9 +467,15 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
         # Use unconverted_tuple_dates directly since it's already a tuple
 
         for date, total_pressure in zip(unconverted_tuple_dates, pressures):
+            if date == 'TYPE':  # Skip 'TYPE' entries
+                continue
             total_pressure_by_date[date] += total_pressure
 
     dates, total_pressure_values = zip(*total_pressure_by_date.items())
+
+    # Convert all date strings to datetime objects
+    dates = [datetime.datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S') if isinstance(date_str, str) else date_str for
+             date_str in dates]
 
     # Sort the dates and corresponding pressures by date
     sorted_data = sorted(zip(dates, total_pressure_values), key=lambda x: x[0])
@@ -479,40 +486,105 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
     # Convert datetime objects to strings
     date_strings = [date.strftime('%Y-%m-%d') for date in sorted_dates]
 
-    plt.plot(date_strings, sorted_total_pressure_values, marker='o',
-             label=',\n'.join([f'API {num}' for num in all_api_nums]))
-    # plt.xticks(rotation=45, ha='right', fontsize=8)  # Adjust the rotation angle as needed
-    plt.xticks(np.arange(0, len(date_strings), step=15), rotation=45, ha='right', fontsize=8)
+    for api_number, data in total_pressure_data.items():
+        if data['TYPE'] == 1:
+            for date, pressure in data.items():
+                if date != 'TYPE':
+                    deep_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
+        elif data['TYPE'] == 0:
+            for date, pressure in data.items():
+                if date != 'TYPE':
+                    shallow_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
 
-    # Extract earthquake information
-    origin_date = datetime.strptime(earthquake_info['Origin Date'], '%Y-%m-%d')
-    # Convert origin_date to a numerical representation
-    origin_date_num = mdates.date2num(origin_date)
-    # Convert origin_date_num to a string for consistency
-    origin_date_str = mdates.num2date(origin_date_num).strftime('%Y-%m-%d')
+    # Plot deep well data
+    plt.figure(figsize=(13, 6))
+    api_color_map = {}  # Dictionary to map API numbers to colors
+    api_legend_map = {}  # Dictionary to map API numbers to legend labels
+    for date, pressure_points in deep_pressure_data.items():
+        for api_number, pressure in pressure_points:
+            if api_number not in api_color_map:
+                # Assign a unique color to each API number
+                api_color_map[api_number] = plt.cm.tab10(len(api_color_map))
+                api_legend_map[api_number] = f'{api_number}'
+            plt.plot(date, pressure, marker='o', linestyle='', color=api_color_map[api_number])
 
+    # Add legend with only one label per color
+    legend_handles = []
+    for api_number, legend_label in api_legend_map.items():
+        legend_handles.append(
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=api_color_map[api_number], label=legend_label))
+
+    origin_date_str = earthquake_info['Origin Date']  # Use earthquake origin date directly
     origin_time = earthquake_info['Origin Time']
     local_magnitude = earthquake_info['Local Magnitude']
+    origin_date = datetime.datetime.strptime(origin_date_str, '%Y-%m-%d')
+    origin_date_num = mdates.date2num(origin_date)
 
-    plt.axvline(x=origin_date_str, color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                      f'\nOrigin Time: {origin_time}'
-                                                                      f'\nOrigin Date: {origin_date}'
-                                                                      f'\nLocal Magnitude: {local_magnitude}')
+    # Get the x-axis limits to ensure the vertical line is within the plot range
+    x_min, x_max = plt.xlim()
+    print(f"x_min {x_min}\nx_max {x_max}\norigin date num: {origin_date_num}")
 
+    # Specify the x-coordinate of the vertical line within the plot range
+    if x_min <= origin_date_num <= x_max:
+        plt.axvline(x=origin_date_num, color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                          f'\nOrigin Time: {origin_time}'
+                                                                          f'\nOrigin Date: {origin_date_str}'
+                                                                          f'\nLocal Magnitude: {local_magnitude}',
+                    zorder=2)
+
+    plt.title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Deep Well')
     plt.xlabel('Injection Date')
     plt.ylabel('Total Bottomhole Pressure')
-    plt.title(f'Total Bottomhole Pressure Over Time - Event ID: {earthquake_info["Event ID"]}')
     plt.grid(True)
-    plt.legend()
+    plt.legend(handles=legend_handles, loc='upper right', bbox_to_anchor=(1, 1), fontsize=10)
+    plt.xticks(rotation=45, ha='right', fontsize=8)
 
-    # Save the plot to a file in the specified output directory
-    plot_filename = f'event_{earthquake_info["Event ID"]}_total_pressure_plot.png'
+    plot_filename = f'event_{earthquake_info["Event ID"]}_deep_well_total_pressure_plot.png'
     plot_filepath = os.path.join(output_directory, plot_filename)
     plt.savefig(plot_filepath)
-
-    # Close the plot after saving
     plt.close()
-    print(f"Pressure plot for earthquake: {earthquake_info['Event ID']} was successfully created.")
+
+    # Plot shallow well data
+    plt.figure(figsize=(13, 6))
+    api_color_map = {}  # Reset API color map for shallow well plot
+    api_legend_map = {}  # Reset API legend map for shallow well plot
+    for date, pressure_points in shallow_pressure_data.items():
+        for api_number, pressure in pressure_points:
+            if api_number not in api_color_map:
+                # Assign a unique color to each API number
+                api_color_map[api_number] = plt.cm.tab10(len(api_color_map))
+                api_legend_map[api_number] = f'{api_number}'
+            plt.plot(date, pressure, marker='o', linestyle='', color=api_color_map[api_number])
+
+    # Add legend with only one label per color
+    legend_handles = []
+    for api_number, legend_label in api_legend_map.items():
+        legend_handles.append(
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=api_color_map[api_number], label=legend_label))
+
+    x_min, x_max = plt.xlim()
+
+    # Specify the x-coordinate of the vertical line within the plot range
+    if x_min <= origin_date_num <= x_max:
+        plt.axvline(x=origin_date_num, color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                          f'\nOrigin Time: {origin_time}'
+                                                                          f'\nOrigin Date: {origin_date_str}'
+                                                                          f'\nLocal Magnitude: {local_magnitude}',
+                    zorder=2)
+
+    plt.title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Shallow Well')
+    plt.xlabel('Injection Date')
+    plt.ylabel('Total Bottomhole Pressure')
+    plt.grid(True)
+    plt.legend(handles=legend_handles, loc='upper right', bbox_to_anchor=(1, 1), fontsize=10)
+    plt.xticks(rotation=45, ha='right', fontsize=8)
+
+    plot_filename = f'event_{earthquake_info["Event ID"]}_shallow_well_total_pressure_plot.png'
+    plot_filepath = os.path.join(output_directory, plot_filename)
+    plt.savefig(plot_filepath)
+    plt.close()
+
+    print(f"Pressure plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
 # Extracting and displaying sorted earthquake data
