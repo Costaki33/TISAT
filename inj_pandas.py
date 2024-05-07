@@ -2,9 +2,11 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import time
+import sys
 import matplotlib.dates as mdates
 import datetime
+import webbrowser
+import csv
 from math import radians, sin, cos, sqrt, atan2
 from accessAPIDepthOnline import get_api_depth, calculate_mean_api_depth
 from collections import defaultdict
@@ -600,30 +602,75 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
 
     print(f"Pressure plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
+def get_earthquake_info_from_csv(csv_string):
+    # Parse the CSV string and extract earthquake information
+    reader = csv.reader(csv_string.splitlines())
+    rows = list(reader)
+    # Extract relevant data from the CSV rows
+    event_id, origin_datetime, latitude, longitude, _, magnitude, _ = rows[0]
+    origin_datetime = origin_datetime.replace('Z', '')  # Remove 'Z' character
+    origin_date, origin_time = origin_datetime.split('T')
+    # Format the earthquake information into a dictionary
+    earthquake_info = {
+        'Event ID': event_id,
+        'Latitude': float(latitude),
+        'Longitude': float(longitude),
+        'Origin Date': origin_date,
+        'Origin Time': datetime.datetime.strptime(origin_time, '%H:%M:%S.%f').strftime('%H:%M:%S'),
+        # Round time to nearest second
+        'Local Magnitude': round(float(magnitude), 2)  # Round magnitude to two decimal places
+    }
+    return earthquake_info
+
 
 # Extracting and displaying sorted earthquake data
 extracted_and_sorted_earthquake_data = extract_and_sort_data(earthquake_data_file_path)
 # Extracting and displaying well injection data
 wells_data = extract_columns(injection_data_file_path)
 
-if wells_data is not None and extracted_and_sorted_earthquake_data is not None:
-    # Initialize current_earthquake_index
-    current_earthquake_index = 0
+if len(sys.argv) > 1 and sys.argv[1] == '0':
+    if wells_data is not None and extracted_and_sorted_earthquake_data is not None:
+        # Initialize current_earthquake_index
+        current_earthquake_index = 0
+        BACKTRACK_EARTHQUAKE_INDEX = get_starting_index('earthquake_info.txt')
+
+        for i in range(len(extracted_and_sorted_earthquake_data)):
+            if BACKTRACK_EARTHQUAKE_INDEX is not None and i < BACKTRACK_EARTHQUAKE_INDEX:
+                continue
+
+            i_th_earthquake_info = get_next_earthquake_info(extracted_and_sorted_earthquake_data, i)
+
+            print(f"Information about the current earthquake:")
+            print(i_th_earthquake_info, "\n")
+            earthquake_latitude = i_th_earthquake_info['Latitude']
+            earthquake_longitude = i_th_earthquake_info['Longitude']
+            earthquake_origin_date = i_th_earthquake_info['Origin Date']
+
+            top_closest_wells = find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20)
+
+            prechecking_injection_pressure(wells_data, top_closest_wells, earthquake_origin_date, i_th_earthquake_info, i)
+            current_earthquake_index += 1
+
+elif len(sys.argv) > 1 and sys.argv[1] == '1':
     BACKTRACK_EARTHQUAKE_INDEX = get_starting_index('earthquake_info.txt')
+    print("Click on the following link to fetch earthquake data:")
+    earthquake_info_url = "http://scdb.beg.utexas.edu/fdsnws/event/1/builder"
+    print(earthquake_info_url)
+    # Open URL in default browser
+    webbrowser.open(earthquake_info_url)
+    csv_data = input("Enter the earthquake data in CSV format: ")
+    # Parse CSV data to extract earthquake information
+    earthquake_info = get_earthquake_info_from_csv(csv_data)
 
-    for i in range(len(extracted_and_sorted_earthquake_data)):
-        if BACKTRACK_EARTHQUAKE_INDEX is not None and i < BACKTRACK_EARTHQUAKE_INDEX:
-            continue
+    print(f"\nInformation about the current earthquake:")
+    print(earthquake_info, "\n")
+    earthquake_latitude = earthquake_info['Latitude']
+    earthquake_longitude = earthquake_info['Longitude']
+    earthquake_origin_date = earthquake_info['Origin Date']
 
-        i_th_earthquake_info = get_next_earthquake_info(extracted_and_sorted_earthquake_data, i)
+    top_closest_wells = find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20)
+    print(f"top n closest: \n{top_closest_wells}")
 
-        print(f"Information about the current earthquake:")
-        print(i_th_earthquake_info, "\n")
-        earthquake_latitude = i_th_earthquake_info['Latitude']
-        earthquake_longitude = i_th_earthquake_info['Longitude']
-        earthquake_origin_date = i_th_earthquake_info['Origin Date']
+    prechecking_injection_pressure(wells_data, top_closest_wells, earthquake_origin_date, earthquake_info,
+                                   BACKTRACK_EARTHQUAKE_INDEX+1)
 
-        top_closest_wells = find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20)
-
-        prechecking_injection_pressure(wells_data, top_closest_wells, earthquake_origin_date, i_th_earthquake_info, i)
-        current_earthquake_index += 1
