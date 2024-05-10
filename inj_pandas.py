@@ -630,7 +630,6 @@ def get_earthquake_info_from_csv(csv_string):
     # Parse the CSV string and extract earthquake information
     reader = csv.reader(csv_string.splitlines())
     rows = list(reader)
-    # Extract relevant data from the CSV rows
     event_id, origin_datetime, latitude, longitude, _, magnitude, _ = rows[0]
     origin_datetime = origin_datetime.replace('Z', '')
     origin_date, origin_time = origin_datetime.split('T')
@@ -646,9 +645,7 @@ def get_earthquake_info_from_csv(csv_string):
     return earthquake_info
 
 
-# Extracting and displaying sorted earthquake data
 extracted_and_sorted_earthquake_data = extract_and_sort_data(earthquake_data_file_path)
-# Extracting and displaying well injection data
 wells_data = extract_columns(injection_data_file_path)
 
 if len(sys.argv) > 1 and sys.argv[1] == '0':
