@@ -41,6 +41,7 @@ Method 1 will run through the entire TexNet Earthquake Catalog. Simply run the f
 ```python
 python3 inj_pandas.py 0
 ```
+If you close the code and rerun, the script will automatically pick up where you left on and plot the next plot in the earthquake order of events. For example, if you stopped on earthquake 23, the code will start on earthquake 24. This can be modified in the code get_starting_index() function. 
 
 #### Method 2
 Method 2 allows the user to choose any given earthquake and the script will plot independently.
