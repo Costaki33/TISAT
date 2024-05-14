@@ -180,7 +180,7 @@ def write_earthquake_info_to_file(file_path, earthquake_info, current_earthquake
             pass
 
 
-def find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N=10, range_km=20):
+def find_closest_wells(wells_data, earthquake_latitude, earthquake_longitude, N, range_km):
     """
     Finds the closest N wells to a given earthquake within some range km and returns the UIC num and distance (km) of
     the earthquake from the well
