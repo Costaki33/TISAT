@@ -1,10 +1,10 @@
-## TexNet Earthquake Injection Correlation Tool 
+## TexNet Earthquake Injection Analysis Tool 
 By Constantinos Skevofilax and Professor Alexandros Savvaidis of BEG TexNet
 
 ### Introduction 
-The purpose of the Earthquake Injection Correlation Tool is to quickly analyze the correlation between oil & gas fracking operations and the inducement of earthquakes. This tool plots the bottom-hole pressure experienced underground daily with the N closest oil & gas wells to a given earthquake, with the goal of understanding its influence on earthquake occurrence.
+The purpose of the Earthquake Injection Correlation Tool is to quickly analyze the connection between oil & gas fracking operations and the inducement of earthquakes. This tool plots the bottom-hole pressure experienced underground daily with the N closest oil & gas wells to a given earthquake, with the goal of understanding its influence on earthquake occurrence.
 
-Traditionally in the seismology field, it is understood that oil & gas operations are inducing earthquakes, which can be seen with the high volume and frequency of earthquakes that occur in oil & gas fields daily. However, this correlation isn't fully understood yet, and the goal of this tool is to easily visualize the trends that are occurring in these fields to develop a better understanding of how humans induce earthquakes. 
+Traditionally in the seismology field, it is understood that oil & gas operations are inducing earthquakes, which can be seen with the high volume and frequency of earthquakes that occur in oil & gas fields. However, this connection isn't fully understood yet, and the goal of this tool is to easily visualize the trends that are occurring in these fields to develop a better understanding of how humans induce earthquakes. 
 
 This code is currently applied for the Midland Basin, Texas but could be applied to any location if formatted correctly. 
 
