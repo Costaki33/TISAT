@@ -91,12 +91,3 @@ def friction_loss(api_number, injection_date, injected_bbl):
     deltaP = ((2 * f * fluid_density * (fluid_velocity ** 2)) / inner_diameter_meters) * packer_depth_m
     deltaP_psi = deltaP / 6895  # Convert Pa to psi
     return deltaP_psi
-
-
-# Call the function
-api_number = 31741196
-injection_date = "2021-07-30 00:00:00"
-bbl = 8079.0
-
-deltaP = friction_loss(api_number, injection_date, bbl)
-print(f"Delta P (psi): {deltaP}")
