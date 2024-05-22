@@ -1,6 +1,4 @@
 import os
-import time
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,12 +9,24 @@ import webbrowser
 import csv
 from math import radians, sin, cos, sqrt, atan2
 from well_data_query import closest_wells_to_earthquake
+from matplotlib.colors import LinearSegmentedColormap
 from friction_loss_calc import friction_loss
 from collections import defaultdict
 
 # GLOBAL VARIABLES AND FILE PATHS
 strawn_formation_data_file_path = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
 output_dir = '/home/skevofilaxc/Documents/earthquake_plots'
+colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+          '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+          '#393b79', '#637939', '#8c6d31', '#843c39', '#7b4173',
+          '#5254a3', '#637939', '#8c6d31', '#d6616b', '#d6616b',
+          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b',
+          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b',
+          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b',
+          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b',
+          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b',
+          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b']
+custom_cmap = LinearSegmentedColormap.from_list('custom_cmap', colors, N=50)
 
 
 def get_earthquake_info_from_csv(csv_string):
@@ -122,7 +132,8 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
         return True
 
 
-def data_preperation(closest_wells_data_df, some_earthquake_origin_date, strawn_formation_data):
+def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some_earthquake_origin_date,
+                     strawn_formation_data):
     """
     Function checks the injection data for the closest wells to a given earthquake to see if the injection data
     is 'valid', IE. it falls between the origin date of the injection dataset and up to a year post-earthquake,
@@ -131,6 +142,8 @@ def data_preperation(closest_wells_data_df, some_earthquake_origin_date, strawn_
     Function also adds the 'WELL TYPE' for a given well, shallow or deep
 
     :param closest_wells_data_df: dataframe that contains the total well information that's within a given range
+    :param earthquake_lat: latitude of the earthquake
+    :param earthquake_lon: longitude of the earthquake
     :param some_earthquake_origin_date: the earthquake origin date
     :param current_earthquake_index: the number earthquake that is being reviewed/iterated
     :return: cleaned_df: cleaned dataframe
@@ -151,8 +164,9 @@ def data_preperation(closest_wells_data_df, some_earthquake_origin_date, strawn_
             api_numbers_to_remove.append(api_number)
     cleaned_df = closest_wells_data_df[~closest_wells_data_df['API Number'].isin(api_numbers_to_remove)]
 
-    # Dictionary to store API numbers and their corresponding well types
+    # Dictionary to store API numbers and their corresponding well types and distances from earthquake
     well_types_map = {}
+    distances_map = {}
 
     # Classify well types for each unique API number
     for api_number, injection_date in earliest_injection_dates.items():
@@ -162,8 +176,13 @@ def data_preperation(closest_wells_data_df, some_earthquake_origin_date, strawn_
             well_depth = cleaned_df.loc[cleaned_df['API Number'] == api_number, 'Well Total Depth ft'].iloc[0]
             well_types_map[api_number] = classify_well_type(well_lat, well_lon, well_depth, strawn_formation_data)
 
+            distance = haversine_distance(earthquake_lat, earthquake_lon, well_lat, well_lon)
+            distances_map[api_number] = distance
+
     # Add the 'Well Type' column based on the well types map
     cleaned_df['Well Type'] = cleaned_df['API Number'].map(well_types_map)
+    # Add the 'Distance from Earthquake (km)' column based on the distances map
+    cleaned_df['Distance from Earthquake (km)'] = cleaned_df['API Number'].map(distances_map)
 
     return cleaned_df
 
@@ -210,7 +229,31 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
     return cleaned_well_data_df
 
 
-def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
+def prepare_total_pressure_data_from_df(finalized_df):
+    total_pressure_data = defaultdict(dict)
+    distance_data = {}
+
+    for index, row in finalized_df.iterrows():
+        api_number = row['API Number']
+        date_of_injection = row['Date of Injection']
+        bottomhole_pressure = row['Bottomhole Pressure']
+        well_type = row['Well Type']
+        distance = row['Distance from Earthquake (km)']
+
+        # Convert date_of_injection to a datetime object
+        if isinstance(date_of_injection, str):
+            date_of_injection = datetime.datetime.strptime(date_of_injection, '%Y-%m-%d')
+
+        if api_number not in total_pressure_data:
+            total_pressure_data[api_number] = {'TYPE': well_type}
+            distance_data[api_number] = distance  # Store the distance for each API number
+
+        total_pressure_data[api_number][date_of_injection] = bottomhole_pressure
+
+    return total_pressure_data, distance_data
+
+
+def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_directory):
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
     deep_pressure_data = defaultdict(list)
@@ -314,8 +357,9 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
     for api_number, median_pressure_points in api_median_pressure.items():
         if api_number not in api_color_map:
             # Assign unique color to each API number for legend
-            api_color_map[api_number] = plt.cm.tab10(len(api_color_map))
-            api_legend_map[api_number] = f'{api_number}'
+            api_color_map[api_number] = custom_cmap(len(api_color_map) / 50)
+            distance = distance_data.get(api_number, 'N/A')
+            api_legend_map[api_number] = f'{api_number} ({distance} km)'
         dates, pressures = zip(*median_pressure_points)
         plt.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
 
@@ -366,8 +410,9 @@ def plot_total_pressure(total_pressure_data, earthquake_info, output_directory):
 
     for api_number, median_pressure_points in api_median_pressure.items():
         if api_number not in api_color_map:
-            api_color_map[api_number] = plt.cm.tab10(len(api_color_map))
-            api_legend_map[api_number] = f'{api_number}'
+            distance = distance_data.get(api_number, 'N/A')
+            api_color_map[api_number] = custom_cmap(len(api_color_map) / 50)
+            api_legend_map[api_number] = f'{api_number} ({distance} km)'
         dates, pressures = zip(*median_pressure_points)
         plt.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
 
@@ -423,9 +468,13 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
                                                        radius_km=range_km)
 
     strawn_formation_data = pd.read_csv(strawn_formation_data_file_path, delimiter=',')
-    cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_origin_date, strawn_formation_data)
+    cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
+                                            earthquake_origin_date, strawn_formation_data)
     finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
     sample_rows = finalized_df.sample(n=5)  # Sample 5 rows
-    print("Sample Rows from finalized_df:")
-    print(sample_rows)
+    # print("Sample Rows from finalized_df:")
+    # print(sample_rows, "\n")
+    total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
+    # print(f"Distance Data: {distance_data}")
+    plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_dir)
     quit()
