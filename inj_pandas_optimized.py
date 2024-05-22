@@ -16,16 +16,18 @@ from collections import defaultdict
 # GLOBAL VARIABLES AND FILE PATHS
 strawn_formation_data_file_path = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
 output_dir = '/home/skevofilaxc/Documents/earthquake_plots'
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-          '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-          '#393b79', '#637939', '#8c6d31', '#843c39', '#7b4173',
-          '#5254a3', '#637939', '#8c6d31', '#d6616b', '#d6616b',
-          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b',
-          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b',
-          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b',
-          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b',
-          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b',
-          '#d6616b', '#d6616b', '#d6616b', '#d6616b', '#d6616b']
+colors = [
+    '#e3613b', '#af77d5', '#6a067d', '#24fb49', '#20c585',
+    '#5155b9', '#c78d27', '#4edb10', '#e6788e', '#18b9d3',
+    '#b7724e', '#41fdbd', '#000eed', '#194b9d', '#7052d8',
+    '#b273c6', '#0f3f00', '#2580ca', '#e30a48', '#8af809',
+    '#e62c97', '#699eae', '#a22c27', '#c56ade', '#801952',
+    '#b5552f', '#910b8e', '#d2bb4e', '#b27d2a', '#61d3be',
+    '#06ad39', '#d1f039', '#cb5024', '#44827f', '#af9fe4',
+    '#ed0010', '#f5932b', '#678e64', '#2c97ed', '#842810',
+    '#e476ee', '#f28d6f', '#f5b3fe', '#ac2cab', '#8b5065',
+    '#685005', '#ceac48', '#7fcae1', '#27229e', '#66a872'
+]
 custom_cmap = LinearSegmentedColormap.from_list('custom_cmap', colors, N=50)
 
 
@@ -176,7 +178,7 @@ def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some
             well_depth = cleaned_df.loc[cleaned_df['API Number'] == api_number, 'Well Total Depth ft'].iloc[0]
             well_types_map[api_number] = classify_well_type(well_lat, well_lon, well_depth, strawn_formation_data)
 
-            distance = haversine_distance(earthquake_lat, earthquake_lon, well_lat, well_lon)
+            distance = round(haversine_distance(earthquake_lat, earthquake_lon, well_lat, well_lon), 2)
             distances_map[api_number] = distance
 
     # Add the 'Well Type' column based on the well types map
@@ -209,13 +211,13 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
                 # deltaP = friction_loss(api_number=api_number, injection_date=injection_date, injected_bbl=volume_injected,
                 #                        packer_depth=well_total_depth_ft)  # in psi
                 hydrostatic_pressure = float(0.465 * well_total_depth_ft)  # 0.465 psi/ft X depth (ft)
-                total_bottomhole_pressure = float(injection_pressure_avg_psig) + hydrostatic_pressure # - deltaP
+                total_bottomhole_pressure = float(injection_pressure_avg_psig) + hydrostatic_pressure  # - deltaP
 
             else:
                 # deltaP = friction_loss(api_number=api_number, injection_date=injection_date, injected_bbl=volume_injected,
                 #                        packer_depth=depth_of_tubing_packer)  # in psi
                 hydrostatic_pressure = float(0.465 * depth_of_tubing_packer)  # 0.465 psi/ft X depth (ft)
-                total_bottomhole_pressure = float(injection_pressure_avg_psig) + hydrostatic_pressure #  - deltaP
+                total_bottomhole_pressure = float(injection_pressure_avg_psig) + hydrostatic_pressure  #  - deltaP
 
             # print(f"Injection Pressure: {injection_pressure_avg_psig}\n"
             #       f"Hydrostatic Pressure: {hydrostatic_pressure}\nDeltaP: {deltaP}")
