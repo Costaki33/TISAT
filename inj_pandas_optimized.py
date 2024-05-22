@@ -26,10 +26,20 @@ COLORS = [
     '#06ad39', '#d1f039', '#cb5024', '#44827f', '#af9fe4',
     '#ed0010', '#f5932b', '#678e64', '#2c97ed', '#842810',
     '#e476ee', '#f28d6f', '#f5b3fe', '#ac2cab', '#8b5065',
-    '#685005', '#ceac48', '#7fcae1', '#27229e', '#66a872'
+    '#685005', '#ceac48', '#7fcae1', '#27229e', '#66a872',
+    '#ff5733', '#33ff57', '#3357ff', '#ff33a5', '#a533ff',
+    '#33ffda', '#ff9133', '#33ff91', '#9133ff', '#ff3399',
+    '#99ff33', '#3399ff', '#ff33cc', '#cc33ff', '#33ffcc',
+    '#ff6633', '#3366ff', '#ff33b8', '#b833ff', '#33ffbb',
+    '#ff3366', '#6633ff', '#33ff99', '#9933ff', '#33ff66',
+    '#ff33ee', '#ee33ff', '#33ffee', '#ffcc33', '#33ccff',
+    '#ff33dd', '#dd33ff', '#33ffdd', '#ff3333', '#3333ff',
+    '#ff33aa', '#aa33ff', '#33ffaa', '#ff66cc', '#cc66ff',
+    '#66ff33', '#3366cc', '#cc6633', '#66ccff', '#ccff66',
+    '#66ffcc', '#ccff33', '#ff33ff', '#33ff33', '#6633cc'
 ]
-CUSTOM_CMAP = LinearSegmentedColormap.from_list('custom_cmap', COLORS, N=50)
-
+CUSTOM_CMAP = LinearSegmentedColormap.from_list('custom_cmap', COLORS[:50], N=50)
+CUSTOM_CMAP2 = LinearSegmentedColormap.from_list('custom_cmap', COLORS[50:], N=50)
 
 def get_earthquake_info_from_csv(csv_string):
     # Parse the CSV string and extract earthquake information
@@ -402,7 +412,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     for api_number, median_pressure_points in api_median_pressure.items():
         if api_number not in api_color_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_color_map[api_number] = CUSTOM_CMAP(len(api_color_map) / 50)
+            api_color_map[api_number] = CUSTOM_CMAP2(len(api_color_map) / 50)
             api_legend_map[api_number] = f'{api_number} ({distance} km)'
         dates, pressures = zip(*median_pressure_points)
         ax2.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
