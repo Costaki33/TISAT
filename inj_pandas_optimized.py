@@ -14,9 +14,9 @@ from friction_loss_calc import friction_loss
 from collections import defaultdict
 
 # GLOBAL VARIABLES AND FILE PATHS
-strawn_formation_data_file_path = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
-output_dir = '/home/skevofilaxc/Documents/earthquake_plots'
-colors = [
+STRAWN_FORMATION_DATA_FILE_PATH = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
+OUTPUT_DIR = '/home/skevofilaxc/Documents/earthquake_plots'
+COLORS = [
     '#e3613b', '#af77d5', '#6a067d', '#24fb49', '#20c585',
     '#5155b9', '#c78d27', '#4edb10', '#e6788e', '#18b9d3',
     '#b7724e', '#41fdbd', '#000eed', '#194b9d', '#7052d8',
@@ -28,7 +28,7 @@ colors = [
     '#e476ee', '#f28d6f', '#f5b3fe', '#ac2cab', '#8b5065',
     '#685005', '#ceac48', '#7fcae1', '#27229e', '#66a872'
 ]
-custom_cmap = LinearSegmentedColormap.from_list('custom_cmap', colors, N=50)
+CUSTOM_CMAP = LinearSegmentedColormap.from_list('custom_cmap', COLORS, N=50)
 
 
 def get_earthquake_info_from_csv(csv_string):
@@ -333,69 +333,13 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             for api_number, pressure in pressure_points:
                 f.write(f"{date}\t{api_number}\t{pressure}\n")
 
-    # Plot deep well data
-    plt.figure(figsize=(20, 8))
+    # Create subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 16), sharex=True)
+
+    # Plot shallow well data
     api_color_map = {}  # Dictionary to map API numbers to colors
     api_legend_map = {}  # Dictionary to map API numbers to legend labels
     api_median_pressure = {}  # Dictionary to store median pressure for each API number over a 3-day span
-
-    # Iterate through the deep pressure data
-    for date, pressure_points in deep_pressure_data.items():
-        # Create a dictionary to store pressure values for each API number
-        api_pressure_values = {}
-        for api_number, pressure in pressure_points:
-            if api_number not in api_pressure_values:
-                api_pressure_values[api_number] = []
-            api_pressure_values[api_number].append(pressure)
-
-        # Calculate the median pressure value for each API number over a 3-day period
-        for api_number, pressure_values in api_pressure_values.items():
-            median_pressure = np.median(pressure_values)
-            if api_number not in api_median_pressure:
-                api_median_pressure[api_number] = []
-            api_median_pressure[api_number].append((date, median_pressure))
-
-    # Plot the median pressure values
-    for api_number, median_pressure_points in api_median_pressure.items():
-        if api_number not in api_color_map:
-            # Assign unique color to each API number for legend
-            api_color_map[api_number] = custom_cmap(len(api_color_map) / 50)
-            distance = distance_data.get(api_number, 'N/A')
-            api_legend_map[api_number] = f'{api_number} ({distance} km)'
-        dates, pressures = zip(*median_pressure_points)
-        plt.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
-
-    legend_handles = []
-    for api_number, legend_label in api_legend_map.items():
-        legend_handles.append(
-            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=api_color_map[api_number], label=legend_label))
-
-    # Add vertical line for earthquake origin date
-    x_min, x_max = plt.xlim()
-    if x_min <= origin_date_num <= x_max:
-        plt.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(plt.Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                                  f'\nOrigin Time: {origin_time}'
-                                                                                  f'\nOrigin Date: {origin_date_str}'
-                                                                                  f'\nLocal Magnitude: {local_magnitude}'))
-
-    plt.title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Deep Well')
-    plt.xlabel('Injection Date')
-    plt.ylabel('Total Bottomhole Pressure (PSI)')
-    plt.grid(True)
-    plt.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
-    plt.xticks(rotation=45, ha='right', fontsize=8)
-
-    plot_filename = f'event_{earthquake_info["Event ID"]}_deep_well_total_pressure_plot.png'
-    plot_filepath = os.path.join(output_directory, plot_filename)
-    plt.savefig(plot_filepath)
-    plt.close()
-
-    # Plot shallow well data
-    plt.figure(figsize=(20, 8))
-    api_color_map = {}  # Reset
-    api_legend_map = {}  # Reset
-    api_median_pressure = {}
 
     for date, pressure_points in shallow_pressure_data.items():
         api_pressure_values = {}
@@ -413,32 +357,77 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     for api_number, median_pressure_points in api_median_pressure.items():
         if api_number not in api_color_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_color_map[api_number] = custom_cmap(len(api_color_map) / 50)
+            api_color_map[api_number] = CUSTOM_CMAP(len(api_color_map) / 50)
             api_legend_map[api_number] = f'{api_number} ({distance} km)'
         dates, pressures = zip(*median_pressure_points)
-        plt.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
+        ax1.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
 
     legend_handles = []
     for api_number, legend_label in api_legend_map.items():
         legend_handles.append(
             plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=api_color_map[api_number], label=legend_label))
 
-    x_min, x_max = plt.xlim()
+    x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
-        plt.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+        ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
     legend_handles.append(plt.Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
                                                                                   f'\nOrigin Time: {origin_time}'
                                                                                   f'\nOrigin Date: {origin_date_str}'
                                                                                   f'\nLocal Magnitude: {local_magnitude}'))
 
-    plt.title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Shallow Well')
-    plt.xlabel('Injection Date')
-    plt.ylabel('Total Bottomhole Pressure (PSI)')
-    plt.grid(True)
-    plt.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
-    plt.xticks(rotation=45, ha='right', fontsize=8)
+    ax1.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Shallow Well')
+    ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
+    ax1.grid(True)
+    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
+    ax1.tick_params(axis='x', rotation=45)
 
-    plot_filename = f'event_{earthquake_info["Event ID"]}_shallow_well_total_pressure_plot.png'
+    # Plot deep well data
+    api_color_map = {}  # Reset
+    api_legend_map = {}  # Reset
+    api_median_pressure = {}
+
+    for date, pressure_points in deep_pressure_data.items():
+        api_pressure_values = {}
+        for api_number, pressure in pressure_points:
+            if api_number not in api_pressure_values:
+                api_pressure_values[api_number] = []
+            api_pressure_values[api_number].append(pressure)
+
+        for api_number, pressure_values in api_pressure_values.items():
+            median_pressure = np.median(pressure_values)
+            if api_number not in api_median_pressure:
+                api_median_pressure[api_number] = []
+            api_median_pressure[api_number].append((date, median_pressure))
+
+    for api_number, median_pressure_points in api_median_pressure.items():
+        if api_number not in api_color_map:
+            distance = distance_data.get(api_number, 'N/A')
+            api_color_map[api_number] = CUSTOM_CMAP(len(api_color_map) / 50)
+            api_legend_map[api_number] = f'{api_number} ({distance} km)'
+        dates, pressures = zip(*median_pressure_points)
+        ax2.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
+
+    legend_handles = []
+    for api_number, legend_label in api_legend_map.items():
+        legend_handles.append(
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=api_color_map[api_number], label=legend_label))
+
+    x_min, x_max = ax2.get_xlim()
+    if x_min <= origin_date_num <= x_max:
+        ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(plt.Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                                  f'\nOrigin Time: {origin_time}'
+                                                                                  f'\nOrigin Date: {origin_date_str}'
+                                                                                  f'\nLocal Magnitude: {local_magnitude}'))
+
+    ax2.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Deep Well')
+    ax2.set_xlabel('Injection Date')
+    ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
+    ax2.grid(True)
+    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
+    ax2.tick_params(axis='x', rotation=45)
+
+    plot_filename = f'event_{earthquake_info["Event ID"]}_well_total_pressure_plot.png'
     plot_filepath = os.path.join(output_directory, plot_filename)
     plt.savefig(plot_filepath)
     plt.close()
@@ -469,7 +458,7 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
                                                        center_lon=earthquake_longitude,
                                                        radius_km=range_km)
 
-    strawn_formation_data = pd.read_csv(strawn_formation_data_file_path, delimiter=',')
+    strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
     cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                             earthquake_origin_date, strawn_formation_data)
     finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
@@ -478,5 +467,5 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
     # print(sample_rows, "\n")
     total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
     # print(f"Distance Data: {distance_data}")
-    plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_dir)
+    plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR)
     quit()
