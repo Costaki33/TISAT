@@ -7,39 +7,16 @@ import matplotlib.dates as mdates
 import datetime
 import webbrowser
 import csv
+import random
 from math import radians, sin, cos, sqrt, atan2
 from well_data_query import closest_wells_to_earthquake
-from matplotlib.colors import LinearSegmentedColormap
 from friction_loss_calc import friction_loss
 from collections import defaultdict
 
 # GLOBAL VARIABLES AND FILE PATHS
 STRAWN_FORMATION_DATA_FILE_PATH = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
 OUTPUT_DIR = '/home/skevofilaxc/Documents/earthquake_plots'
-COLORS = [
-    '#e3613b', '#af77d5', '#6a067d', '#24fb49', '#20c585',
-    '#5155b9', '#c78d27', '#4edb10', '#e6788e', '#18b9d3',
-    '#b7724e', '#41fdbd', '#000eed', '#194b9d', '#7052d8',
-    '#b273c6', '#0f3f00', '#2580ca', '#e30a48', '#8af809',
-    '#e62c97', '#699eae', '#a22c27', '#c56ade', '#801952',
-    '#b5552f', '#910b8e', '#d2bb4e', '#b27d2a', '#61d3be',
-    '#06ad39', '#d1f039', '#cb5024', '#44827f', '#af9fe4',
-    '#ed0010', '#f5932b', '#678e64', '#2c97ed', '#842810',
-    '#e476ee', '#f28d6f', '#f5b3fe', '#ac2cab', '#8b5065',
-    '#685005', '#ceac48', '#7fcae1', '#27229e', '#66a872',
-    '#ff5733', '#33ff57', '#3357ff', '#ff33a5', '#a533ff',
-    '#33ffda', '#ff9133', '#33ff91', '#9133ff', '#ff3399',
-    '#99ff33', '#3399ff', '#ff33cc', '#cc33ff', '#33ffcc',
-    '#ff6633', '#3366ff', '#ff33b8', '#b833ff', '#33ffbb',
-    '#ff3366', '#6633ff', '#33ff99', '#9933ff', '#33ff66',
-    '#ff33ee', '#ee33ff', '#33ffee', '#ffcc33', '#33ccff',
-    '#ff33dd', '#dd33ff', '#33ffdd', '#ff3333', '#3333ff',
-    '#ff33aa', '#aa33ff', '#33ffaa', '#ff66cc', '#cc66ff',
-    '#66ff33', '#3366cc', '#cc6633', '#66ccff', '#ccff66',
-    '#66ffcc', '#ccff33', '#ff33ff', '#33ff33', '#6633cc'
-]
-CUSTOM_CMAP = LinearSegmentedColormap.from_list('custom_cmap', COLORS[:50], N=50)
-CUSTOM_CMAP2 = LinearSegmentedColormap.from_list('custom_cmap', COLORS[50:], N=50)
+
 
 def get_earthquake_info_from_csv(csv_string):
     # Parse the CSV string and extract earthquake information
@@ -142,6 +119,14 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
 
     if injection_date <= one_year_after_earthquake_date:
         return True
+
+
+def generate_random_colors(num_colors):
+    colors = []
+    for i in range(num_colors):
+        color = (random.random(), random.random(), random.random())
+        colors.append(color)
+    return colors
 
 
 def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some_earthquake_origin_date,
@@ -343,6 +328,9 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             for api_number, pressure in pressure_points:
                 f.write(f"{date}\t{api_number}\t{pressure}\n")
 
+    shallow_colors = generate_random_colors(50)
+    deep_colors = generate_random_colors(50)
+
     # Create subplots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 16), sharex=True)
 
@@ -367,7 +355,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     for api_number, median_pressure_points in api_median_pressure.items():
         if api_number not in api_color_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_color_map[api_number] = CUSTOM_CMAP(len(api_color_map) / 50)
+            api_color_map[api_number] = shallow_colors[len(api_color_map) % 50]
             api_legend_map[api_number] = f'{api_number} ({distance} km)'
         dates, pressures = zip(*median_pressure_points)
         ax1.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
@@ -412,7 +400,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     for api_number, median_pressure_points in api_median_pressure.items():
         if api_number not in api_color_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_color_map[api_number] = CUSTOM_CMAP2(len(api_color_map) / 50)
+            api_color_map[api_number] = deep_colors[len(api_color_map) % 50]
             api_legend_map[api_number] = f'{api_number} ({distance} km)'
         dates, pressures = zip(*median_pressure_points)
         ax2.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
