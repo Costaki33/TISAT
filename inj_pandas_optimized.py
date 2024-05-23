@@ -425,6 +425,13 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
     ax2.tick_params(axis='x', rotation=45)
 
+    # Set major locator and formatter to display ticks for each month
+    ax1.xaxis.set_major_locator(mdates.MonthLocator())
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    ax2.xaxis.set_major_locator(mdates.MonthLocator())
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
     plot_filename = f'event_{earthquake_info["Event ID"]}_well_total_pressure_plot.png'
     plot_filepath = os.path.join(output_directory, plot_filename)
     plt.savefig(plot_filepath)
@@ -461,9 +468,6 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
                                             earthquake_origin_date, strawn_formation_data)
     finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
     sample_rows = finalized_df.sample(n=5)  # Sample 5 rows
-    # print("Sample Rows from finalized_df:")
-    # print(sample_rows, "\n")
     total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
-    # print(f"Distance Data: {distance_data}")
     plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR)
     quit()
