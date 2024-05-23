@@ -10,6 +10,7 @@ import csv
 import random
 from math import radians, sin, cos, sqrt, atan2
 from well_data_query import closest_wells_to_earthquake
+from matplotlib.lines import Line2D
 from friction_loss_calc import friction_loss
 from collections import defaultdict
 
@@ -356,22 +357,22 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
         if api_number not in api_color_map:
             distance = distance_data.get(api_number, 'N/A')
             api_color_map[api_number] = shallow_colors[len(api_color_map) % 50]
-            api_legend_map[api_number] = f'{api_number} ({distance} km)'
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, api_color_map[api_number])
         dates, pressures = zip(*median_pressure_points)
         ax1.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
 
     legend_handles = []
-    for api_number, legend_label in api_legend_map.items():
-        legend_handles.append(
-            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=api_color_map[api_number], label=legend_label))
+    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
+    for legend_label, _, color in sorted_legend_items:
+        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(plt.Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                                  f'\nOrigin Time: {origin_time}'
-                                                                                  f'\nOrigin Date: {origin_date_str}'
-                                                                                  f'\nLocal Magnitude: {local_magnitude}'))
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                                f'\nOrigin Time: {origin_time}'
+                                                                                f'\nOrigin Date: {origin_date_str}'
+                                                                                f'\nLocal Magnitude: {local_magnitude}'))
 
     ax1.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Shallow Well')
     ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
@@ -401,22 +402,22 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
         if api_number not in api_color_map:
             distance = distance_data.get(api_number, 'N/A')
             api_color_map[api_number] = deep_colors[len(api_color_map) % 50]
-            api_legend_map[api_number] = f'{api_number} ({distance} km)'
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, api_color_map[api_number])
         dates, pressures = zip(*median_pressure_points)
         ax2.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
 
     legend_handles = []
-    for api_number, legend_label in api_legend_map.items():
-        legend_handles.append(
-            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=api_color_map[api_number], label=legend_label))
+    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
+    for legend_label, _, color in sorted_legend_items:
+        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax2.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(plt.Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                                  f'\nOrigin Time: {origin_time}'
-                                                                                  f'\nOrigin Date: {origin_date_str}'
-                                                                                  f'\nLocal Magnitude: {local_magnitude}'))
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                                f'\nOrigin Time: {origin_time}'
+                                                                                f'\nOrigin Date: {origin_date_str}'
+                                                                                f'\nLocal Magnitude: {local_magnitude}'))
 
     ax2.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Deep Well')
     ax2.set_xlabel('Injection Date')
@@ -438,7 +439,6 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     plt.close()
 
     print(f"Pressure plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
-
 
 if len(sys.argv) > 1 and sys.argv[1] == '0':
     print("Click on the following link to fetch earthquake data:")
