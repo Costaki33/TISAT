@@ -1,13 +1,14 @@
 import os
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import sys
-import matplotlib.dates as mdates
+import csv
 import datetime
 import webbrowser
-import csv
 import random
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.colors as mcolors
 from math import radians, sin, cos, sqrt, atan2
 from well_data_query import closest_wells_to_earthquake
 from matplotlib.lines import Line2D
@@ -122,11 +123,8 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
         return True
 
 
-def generate_random_colors(num_colors):
-    colors = []
-    for i in range(num_colors):
-        color = (random.random(), random.random(), random.random())
-        colors.append(color)
+def generate_gradient_colors(num_colors, start_color, end_color):
+    colors = list(mcolors.LinearSegmentedColormap.from_list("", [start_color, end_color])(np.linspace(0, 1, num_colors)))
     return colors
 
 
@@ -329,8 +327,19 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             for api_number, pressure in pressure_points:
                 f.write(f"{date}\t{api_number}\t{pressure}\n")
 
-    shallow_colors = generate_random_colors(50)
-    deep_colors = generate_random_colors(50)
+    shallow_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in
+                         shallow_pressure_data.keys()}
+    deep_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in
+                      deep_pressure_data.keys()}
+
+    sorted_shallow_distances = sorted(shallow_distances.items(), key=lambda x: x[1])
+    sorted_deep_distances = sorted(deep_distances.items(), key=lambda x: x[1])
+
+    shallow_colors = generate_gradient_colors(len(sorted_shallow_distances), "darkblue", "lightblue")
+    deep_colors = generate_gradient_colors(len(sorted_deep_distances), "darkgreen", "lightgreen")
+
+    shallow_color_map = {api_number: color for (api_number, _), color in zip(sorted_shallow_distances, shallow_colors)}
+    deep_color_map = {api_number: color for (api_number, _), color in zip(sorted_deep_distances, deep_colors)}
 
     # Create subplots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 16), sharex=True)
