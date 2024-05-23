@@ -124,7 +124,14 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
 
 
 def generate_gradient_colors(num_colors, start_color, end_color):
-    colors = list(mcolors.LinearSegmentedColormap.from_list("", [start_color, end_color])(np.linspace(0, 1, num_colors)))
+    # Generate a colormap with more distinguishable colors
+    colormap = mcolors.LinearSegmentedColormap.from_list("", [start_color, end_color])
+    if num_colors < 2:
+        return [colormap(0.5)] * num_colors
+    # Piecewise linear interpolation for better color distinction
+    position = np.linspace(0, 1, num_colors)
+    position = np.power(position, 0.99)  # Adjust the position to have a non-linear distribution
+    colors = colormap(position)
     return colors
 
 
@@ -333,8 +340,8 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
 
     # Generate gradient colors for all API numbers
-    deep_colors = generate_gradient_colors(len(sorted_all_distances), "darkred", "lightcoral")
-    shallow_colors = generate_gradient_colors(len(sorted_all_distances), "darkgreen", "lightgreen")
+    deep_colors = generate_gradient_colors(len(sorted_all_distances), "navy", "skyblue")
+    shallow_colors = generate_gradient_colors(len(sorted_all_distances), "darkorange", "gold")
 
     # Create a color map for all API numbers
     color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
