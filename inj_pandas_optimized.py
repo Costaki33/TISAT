@@ -327,25 +327,23 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             for api_number, pressure in pressure_points:
                 f.write(f"{date}\t{api_number}\t{pressure}\n")
 
-    shallow_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in
-                         shallow_pressure_data.keys()}
-    deep_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in
-                      deep_pressure_data.keys()}
+    # Combine all API numbers from shallow and deep data
+    all_api_numbers = list(set(all_api_nums))
+    all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
+    sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
 
-    sorted_shallow_distances = sorted(shallow_distances.items(), key=lambda x: x[1])
-    sorted_deep_distances = sorted(deep_distances.items(), key=lambda x: x[1])
+    # Generate gradient colors for all API numbers
+    deep_colors = generate_gradient_colors(len(sorted_all_distances), "darkred", "lightcoral")
+    shallow_colors = generate_gradient_colors(len(sorted_all_distances), "darkgreen", "lightgreen")
 
-    shallow_colors = generate_gradient_colors(len(sorted_shallow_distances), "darkblue", "lightblue")
-    deep_colors = generate_gradient_colors(len(sorted_deep_distances), "darkgreen", "lightgreen")
-
-    shallow_color_map = {api_number: color for (api_number, _), color in zip(sorted_shallow_distances, shallow_colors)}
-    deep_color_map = {api_number: color for (api_number, _), color in zip(sorted_deep_distances, deep_colors)}
+    # Create a color map for all API numbers
+    color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
+    color_map_deep = {api_number: color for (api_number, _), color in zip(sorted_all_distances, deep_colors)}
 
     # Create subplots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 16), sharex=True)
 
     # Plot shallow well data
-    api_color_map = {}  # Dictionary to map API numbers to colors
     api_legend_map = {}  # Dictionary to map API numbers to legend labels
     api_median_pressure = {}  # Dictionary to store median pressure for each API number over a 3-day span
 
@@ -363,12 +361,11 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             api_median_pressure[api_number].append((date, median_pressure))
 
     for api_number, median_pressure_points in api_median_pressure.items():
-        if api_number not in api_color_map:
+        if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_color_map[api_number] = shallow_colors[len(api_color_map) % 50]
-            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, api_color_map[api_number])
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, pressures = zip(*median_pressure_points)
-        ax1.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
+        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number])
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -390,7 +387,6 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax1.tick_params(axis='x', rotation=45)
 
     # Plot deep well data
-    api_color_map = {}  # Reset
     api_legend_map = {}  # Reset
     api_median_pressure = {}
 
@@ -408,12 +404,11 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             api_median_pressure[api_number].append((date, median_pressure))
 
     for api_number, median_pressure_points in api_median_pressure.items():
-        if api_number not in api_color_map:
+        if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_color_map[api_number] = deep_colors[len(api_color_map) % 50]
-            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, api_color_map[api_number])
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
         dates, pressures = zip(*median_pressure_points)
-        ax2.plot(dates, pressures, marker='o', linestyle='', color=api_color_map[api_number])
+        ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number])
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -429,7 +424,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
                                                                                 f'\nLocal Magnitude: {local_magnitude}'))
 
     ax2.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Deep Well')
-    ax2.set_xlabel('Injection Date')
+    ax2.set_xlabel('Date')
     ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
     ax2.grid(True)
     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
