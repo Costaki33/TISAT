@@ -163,7 +163,7 @@ def adjust_lightness(hex_color, adjustment_factor):
     return hsl_to_hex(h, s, l)
 
 
-def generate_gradient_colors(num_colors, start_color, lightness_adjustment=1.0):
+def generate_gradient_colors(num_colors, start_color, lightness_adjustment):
     """Generate a list of distinct gradient colors starting from a given color."""
     # Convert start color to HSL
     h, l, s = hex_to_hsl(start_color)
@@ -393,10 +393,10 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
 
     # Generate gradient colors for all API numbers
-    slightly_darker_shallow = adjust_lightness("#FF91A4", 0.85) #FF99AE
-    slightly_darker_deep = adjust_lightness("#7AC5CD", 0.80)
-    shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow)
-    deep_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_deep)
+    slightly_darker_shallow = adjust_lightness("#FFDAB9", 0.55) #FF91A4/7FFFD4
+    slightly_darker_deep = adjust_lightness("#E6E6FA", 0.65)
+    shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow, lightness_adjustment=1)
+    deep_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_deep, lightness_adjustment=.95)
 
     # Create a color map for all API numbers
     color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
@@ -508,43 +508,38 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
 
 def create_well_histogram_per_api(cleaned_well_data_df):
-    # Define the conditions and categories
-    cleaned_well_data_df['Date of Injection'] = pd.to_datetime(cleaned_well_data_df['Date of Injection'],
-                                                               errors='coerce')
+    # Create a copy of the DataFrame
+    df_copy = cleaned_well_data_df.copy()
+
+    # Convert 'Date of Injection' to datetime
+    df_copy['Date of Injection'] = pd.to_datetime(df_copy['Date of Injection'], errors='coerce')
 
     # Define the conditions and categories
     conditions = [
-        (cleaned_well_data_df['Injection Pressure Average PSIG'].notna() & (
-                cleaned_well_data_df['Injection Pressure Average PSIG'] != 0) &
-         cleaned_well_data_df['Well Total Depth ft'].notna() & (cleaned_well_data_df['Well Total Depth ft'] != 0)),
-        (cleaned_well_data_df['Well Total Depth ft'].notna() & (cleaned_well_data_df['Well Total Depth ft'] != 0) &
-         (cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (
-                 cleaned_well_data_df['Injection Pressure Average PSIG'] == 0))),
-        ((cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (
-                cleaned_well_data_df['Injection Pressure Average PSIG'] == 0)) &
-         (cleaned_well_data_df['Well Total Depth ft'].isna() | (cleaned_well_data_df['Well Total Depth ft'] == 0)))
+        (df_copy['Injection Pressure Average PSIG'].notna() & (df_copy['Injection Pressure Average PSIG'] != 0) &
+         df_copy['Well Total Depth ft'].notna() & (df_copy['Well Total Depth ft'] != 0)),
+        (df_copy['Well Total Depth ft'].notna() & (df_copy['Well Total Depth ft'] != 0) &
+         (df_copy['Injection Pressure Average PSIG'].isna() | (df_copy['Injection Pressure Average PSIG'] == 0))),
+        ((df_copy['Injection Pressure Average PSIG'].isna() | (df_copy['Injection Pressure Average PSIG'] == 0)) &
+         (df_copy['Well Total Depth ft'].isna() | (df_copy['Well Total Depth ft'] == 0)))
     ]
     categories = ['Complete', 'Incomplete', 'Missing']
 
     # Apply the conditions to create a new 'Category' column
-    cleaned_well_data_df['Category'] = np.select(conditions, categories, default='Unknown')
+    df_copy['Category'] = np.select(conditions, categories, default='Unknown')
 
     # Extract the month and year from 'Date of Injection'
-    cleaned_well_data_df['Month-Year'] = cleaned_well_data_df['Date of Injection'].dt.to_period('M')
+    df_copy['Month-Year'] = df_copy['Date of Injection'].dt.to_period('M')
 
     # Sort the DataFrame by 'Date of Injection'
-    cleaned_well_data_df.sort_values(by='Date of Injection', inplace=True)
+    df_copy.sort_values(by='Date of Injection', inplace=True)
 
     # Group by 'API Number'
-    grouped = cleaned_well_data_df.groupby('API Number')
+    grouped = df_copy.groupby('API Number')
 
     for api_number, group in grouped:
         # Ensure chronological order within each 'Month-Year' by sorting by 'Date of Injection'
         group = group.sort_values(by='Date of Injection')
-
-        # incomplete_dates = group[group['Category'] == 'Incomplete']['Date of Injection']
-        # print(f"Incomplete dates for API Number {api_number}:")
-        # print(incomplete_dates)
 
         # Count the occurrences in each category for each date within each month-year
         category_counts = group.groupby(['Month-Year', 'Date of Injection', 'Category']).size().unstack(
@@ -608,9 +603,8 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
     strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
     cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                             earthquake_origin_date, strawn_formation_data)
-    # create_well_histogram_per_api(cleaned_well_data_df)
+    create_well_histogram_per_api(cleaned_well_data_df)
     finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
-    # sample_rows = finalized_df.sample(n=5)  # Sample 5 rows
     total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
     plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR)
     quit()
