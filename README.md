@@ -72,8 +72,8 @@ deltaP is the flowwing tubing friction loss within the pipe and it is calculated
 
 This script requires an internet connection, as to get the well depth there is an API written that opens the RRC's well information web page and returns the listed well depth.
 
-1. Sort the wells by type, deep or shallow, based on the Strawn Formation
-2. Plot 
+6. Sort the wells by type, deep or shallow, based on the Strawn Formation
+7. Plot 
 
 
 #### Running Code 
