@@ -123,7 +123,7 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
         return True
 
 
-def generate_gradient_colors(num_colors, start_color, end_color, gamma=2.25):
+def generate_gradient_colors(num_colors, start_color, end_color, gamma):
     # Convert start and end colors to RGB format
     start_rgb = mcolors.to_rgb(start_color)
     end_rgb = mcolors.to_rgb(end_color)
@@ -367,8 +367,8 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
 
     # Generate gradient colors for all API numbers
-    deep_colors = generate_gradient_colors(len(sorted_all_distances), "#006400", "#98FB98")
-    shallow_colors = generate_gradient_colors(len(sorted_all_distances), "navy", "#ADD8E6")
+    shallow_colors = generate_gradient_colors(len(sorted_all_distances), "#00008B", "#ADD8E6", gamma=3.0)
+    deep_colors = generate_gradient_colors(len(sorted_all_distances), "#8B0000", "#FFA07A", gamma=3.0)
 
     # Create a color map for all API numbers
     color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
@@ -581,8 +581,6 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
     strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
     cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                             earthquake_origin_date, strawn_formation_data)
-    # sample_rows = cleaned_well_data_df.sample(n=5)
-    # print(f"Sample Rows:\n{sample_rows}")
     # create_well_histogram_per_api(cleaned_well_data_df)
     finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
     # sample_rows = finalized_df.sample(n=5)  # Sample 5 rows
