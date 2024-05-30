@@ -1,8 +1,6 @@
 import math
 import colebrook
 import pandas as pd
-import datetime
-import numpy as np
 from fractions import Fraction
 
 tubing_information = '/home/skevofilaxc/Documents/earthquake_data/2024-03-06T08.47.26.270812_2024-03-05 cmpl tubing.py.csv'
@@ -42,7 +40,6 @@ def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft):
     # Look for the rows whose API numbers match the one provided
     # Find the row with the closest 'modified_dt' to injection_date
     pipe_data_df['modified_dt'] = pd.to_datetime(pipe_data_df['modified_dt'])
-    injection_date = pd.to_datetime(injection_date)  # temp
     matching_rows = pipe_data_df[pipe_data_df['api_no'] == api_number]
 
     if matching_rows.empty:
@@ -64,7 +61,7 @@ def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft):
     inner_diameter_inches = next(item[1] for item in tubing_dimensions if item[0] == outer_diameter_inches)  # in inches
 
     # roh = 64.3 lbm/ft^3 = 1.03-specific gravity water
-    # Viscosity of Water at bottomhole condiitons = 0.6 cp
+    # Viscosity of Water at bottomhole conditons = 0.6 cp
     # print(f"Injected BBL: {injected_bbl}\nInner Diameter (in): {inner_diameter_inches}")
     newtonian_reynolds = (1.48 * injected_bbl * 64.3) / (0.6 * inner_diameter_inches)
     # print(f"Newtonian Reynolds: {newtonian_reynolds}")
