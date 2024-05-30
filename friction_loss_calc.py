@@ -1,12 +1,14 @@
 import math
+import colebrook
 import pandas as pd
 import datetime
 import numpy as np
 from fractions import Fraction
-from scipy.optimize import minimize_scalar, minimize
 
 tubing_information = '/home/skevofilaxc/Documents/earthquake_data/2024-03-06T08.47.26.270812_2024-03-05 cmpl tubing.py.csv'
 tubing_dimensions = [
+    # [Outer Diameter (in), Inner Diameter (in)]
+    # Corresponding OD, ID
     [2.063, 1.751],
     [2.375, 2],
     [2.875, 2.4],
@@ -33,80 +35,71 @@ def parse_tubing_size(size_str):
     return None
 
 
-def calculate_objective(friction_factor_guess, epsilon, hydraulic_diameter, reynolds_num):
-    colebrook_left_side = 1 / np.sqrt(friction_factor_guess)
-    colebrook_right_side = -2 * np.log10(
-        (epsilon / (3.7 * hydraulic_diameter)) + (2.51 / (reynolds_num * np.sqrt(friction_factor_guess))))
-    objective = (colebrook_left_side - colebrook_right_side) ** 2
-    return objective
-
-def calculate_objective_derivative(friction_factor_guess, epsilon, hydraulic_diameter, reynolds_num):
-    colebrook_left_side = 1 / np.sqrt(friction_factor_guess)
-    colebrook_right_side = -2 * np.log10(
-        (epsilon / (3.7 * hydraulic_diameter)) + (2.51 / (reynolds_num * np.sqrt(friction_factor_guess))))
-    d_colebrook_left_side = -0.5 / (friction_factor_guess * np.sqrt(friction_factor_guess))
-    d_colebrook_right_side = (2.51 * np.sqrt(friction_factor_guess)) / (reynolds_num * np.log(10) * ((epsilon / (3.7 * hydraulic_diameter)) + (2.51 / (reynolds_num * np.sqrt(friction_factor_guess)))))
-    objective_derivative = 2 * (colebrook_left_side - colebrook_right_side) * (d_colebrook_left_side - d_colebrook_right_side)
-    return objective_derivative
-
-
-def friction_loss(api_number, injection_date, injected_bbl, packer_depth):
+def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft):
     # For Newtonian Fluids
-    inch_to_meter = 0.0254
-    epsilon = 0.0001  # "We have been using 0.0001 (dimensionless) as an estimate, which is a fairly smooth value."
-    mu = 0.001  # kg / (m * s), viscosity of water
-    fluid_density_kg_m3 = (8.94 * 232.23655555555555) * 0.45359237
-
     pipe_data_df = pd.read_csv(tubing_information)
 
-    # Change datetime types to make processing easier
-    pipe_data_df['modified_dt'] = pd.to_datetime(pipe_data_df['modified_dt'])
     # Look for the rows whose API numbers match the one provided
     # Find the row with the closest 'modified_dt' to injection_date
+    pipe_data_df['modified_dt'] = pd.to_datetime(pipe_data_df['modified_dt'])
+    injection_date = pd.to_datetime(injection_date)  # temp
     matching_rows = pipe_data_df[pipe_data_df['api_no'] == api_number]
 
     if matching_rows.empty:
         # This means that the API number wasn't found, instead we are going to find the row with the
         # closest packer_set to the inputted packer_depth
-        closest_row_index = (pipe_data_df['packer_set'] - packer_depth).abs().idxmin()
+        print(f"API Number not found")
+        closest_row_index = (pipe_data_df['packer_set'] - packer_depth_ft).abs().idxmin()
         closest_row = pipe_data_df.loc[[closest_row_index]]
     else:
+        print("API Number Found")
         closest_row = matching_rows.iloc[(matching_rows['modified_dt'] - injection_date).abs().argsort()[:1]]
-
-    # Extract tubing_size (inch) and packer_set (ft) from closest_row
-    # Advised by Jim Moore to use packer_set depth in calculations
+        # print(f"Closest Row:\n{closest_row}")
+        # print(f"Packer depth: {packer_depth_ft}")
 
     tubing_size = closest_row['tubing_size'].iloc[0]
     tubing_size = parse_tubing_size(tubing_size)  # Parse tubing size
-    packer_depth_m = packer_depth * 0.3048  # convert ft to m, asked to use by Jim Moore
 
     outer_diameter_inches = min(tubing_dimensions, key=lambda x: abs(x[0] - tubing_size))[0]  # in inches
     inner_diameter_inches = next(item[1] for item in tubing_dimensions if item[0] == outer_diameter_inches)  # in inches
-    inner_diameter_meters: float = inner_diameter_inches * inch_to_meter
+
+    # roh = 64.3 lbm/ft^3 = 1.03-specific gravity water
+    # Viscosity of Water at bottomhole condiitons = 0.6 cp
+    # print(f"Injected BBL: {injected_bbl}\nInner Diameter (in): {inner_diameter_inches}")
+    newtonian_reynolds = (1.48 * injected_bbl * 64.3) / (0.6 * inner_diameter_inches)
+    # print(f"Newtonian Reynolds: {newtonian_reynolds}")
+
+    if newtonian_reynolds < 2100:  # Laminar Flow
+        print("Laminar Flow")
+        friction_factor = 16 / newtonian_reynolds
+    else:  # Turbulent Flow
+        print("Turbulent Flow")
+        # Pipe roughness "We have been using 0.0001 (dimensionless) as an estimate, which is a fairly smooth value."
+        friction_factor = colebrook.sjFriction(newtonian_reynolds, roughness=0.0001)
+
+    # print(f"Friction Factor: {friction_factor}")
+    # Fanning Equation - Frictional Pressure Drop Equation
+    fluid_velocity_ft_s = (4 * injected_bbl * 5.615 * (1 / 86400)) / (math.pi * (inner_diameter_inches / 12)**2)  # ft/s
+    deltaP = ((2 * friction_factor * 64.3 * (fluid_velocity_ft_s**2) * packer_depth_ft)
+              / (32.17 * (inner_diameter_inches / 12))) * (1/144) # PSI
+    return deltaP
 
 
-    # Calculate pipe flow area using formula from sample problem on Petrowiki link (Q.4)
+# API NUM: 32938683
+# Injected BBL: 4372.0
+# Injection Date: 2020-09-30 00:00:00
+# Packer Depth: 6130
 
-    pipe_flow_area_interior = .25 * math.pi * (inner_diameter_meters)**2 # m^2
-    fluid_flow_rate = round((injected_bbl * 0.159) / (24 * 3600), 5)  # bbl to m^3/s
-    fluid_velocity = fluid_flow_rate / pipe_flow_area_interior  # m/s
+# API NUM: 13506723
+# Injected BBL: 299.0
+# Injection Date: 2020-10-01 00:00:00
+# Packer Depth: 13316
 
-    print(f"Fluid Density: {fluid_density_kg_m3}"
-          f"\nPipe Flow Area Interior: {pipe_flow_area_interior}"
-          f"\nInner Diameter Meters: {inner_diameter_meters}"
-          f"\nFluid Velocity: {fluid_velocity}"
-          f"\nMu: {mu}")
-    reynolds_num = (fluid_density_kg_m3 * fluid_velocity * inner_diameter_meters) / mu
-    print(f"Reynolds num: {reynolds_num}")
+# API NUM: 32936971
+# Injected BBL: 278.0
+# Injection Date: 2020-09-30 00:00:00
+# Packer Depth: 6000
 
-    # Dh = D2 - D1 (eqn. from https://neutrium.net/fluid-flow/hydraulic-diameter/)
-    hydraulic_diameter =inner_diameter_meters
-
-    result = minimize(calculate_objective, 0.01, args=(epsilon, hydraulic_diameter, reynolds_num),
-                      method='Newton-CG', jac=calculate_objective_derivative)
-    f = result.x[0]  # optimized friction factor
-    # print(f"F: {f}")
-
-    deltaP = ((2 * f * fluid_density_kg_m3 * (fluid_velocity ** 2)) / inner_diameter_meters) * packer_depth_m
-    deltaP_psi = deltaP / 6895  # Convert Pa to psi
-    return deltaP_psi
+# deltaP_psi = friction_loss(api_number=32936971, injection_date='2020-09-30 00:00:00', injected_bbl=278.0,
+#                            packer_depth_ft=6000)
+# print(f"Delta P (psi): {deltaP_psi}")

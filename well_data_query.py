@@ -23,8 +23,7 @@ def closest_wells_to_earthquake(center_lat, center_lon, radius_km):
     - DataFrame containing the closest wells data.
     """
 
-    apiUrl = "https://injection.texnet.beg.utexas.edu/dev/api/Export"
-
+    apiUrl = "https://injection.texnet.beg.utexas.edu/api/Export"
     # Compose the export args dictionary
     exportArgs = {
         "Format": "excel",
@@ -84,7 +83,7 @@ def closest_wells_to_earthquake(center_lat, center_lon, radius_km):
 
     else:
         print("Oh no! We got a response code of: " + str(request.status_code))
-        return None
+        quit()
 
 
 # Example usage:

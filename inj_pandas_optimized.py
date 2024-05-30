@@ -3,12 +3,12 @@ import sys
 import csv
 import datetime
 import webbrowser
-import random
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.colors as mcolors
+import colorspacious as csp
 from math import radians, sin, cos, sqrt, atan2
 from well_data_query import closest_wells_to_earthquake
 from matplotlib.lines import Line2D
@@ -123,15 +123,34 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
         return True
 
 
-def generate_gradient_colors(num_colors, start_color, end_color):
-    # Generate a colormap with more distinguishable colors
-    colormap = mcolors.LinearSegmentedColormap.from_list("", [start_color, end_color])
+def generate_gradient_colors(num_colors, start_color, end_color, gamma=2.25):
+    # Convert start and end colors to RGB format
+    start_rgb = mcolors.to_rgb(start_color)
+    end_rgb = mcolors.to_rgb(end_color)
+
+    # Convert RGB to LAB color space
+    start_lab = csp.cspace_convert(start_rgb, "sRGB1", "CIELab")
+    end_lab = csp.cspace_convert(end_rgb, "sRGB1", "CIELab")
+
+    # Generate positions with non-linear transformation for better color distinction
     if num_colors < 2:
-        return [colormap(0.5)] * num_colors
-    # Piecewise linear interpolation for better color distinction
+        return [mcolors.to_hex(mcolors.rgb_to_hsv(start_rgb))] * num_colors
+
     position = np.linspace(0, 1, num_colors)
-    position = np.power(position, 0.99)  # Adjust the position to have a non-linear distribution
-    colors = colormap(position)
+    position = position ** (1/gamma)  # Apply non-linear transformation
+
+    # Interpolate in the LAB color space
+    interpolated_lab = np.array([np.interp(position, [0, 1], [start_lab[i], end_lab[i]]) for i in range(3)]).T
+
+    # Convert LAB back to RGB
+    interpolated_rgb = csp.cspace_convert(interpolated_lab, "CIELab", "sRGB1")
+
+    # Ensure RGB values are within the valid range [0, 1]
+    interpolated_rgb = np.clip(interpolated_rgb, 0, 1)
+
+    # Convert RGB to hex for better compatibility with plotting libraries
+    colors = [mcolors.to_hex(rgb) for rgb in interpolated_rgb]
+
     return colors
 
 
@@ -199,34 +218,42 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
         api_number = row['API Number']
         volume_injected = row['Volume Injected (BBLs)']
         injection_pressure_avg_psig = row['Injection Pressure Average PSIG']
+        injection_pressure_avg_psi = injection_pressure_avg_psig + 14.7
         well_total_depth_ft = row['Well Total Depth ft']
         depth_of_tubing_packer = row['Depth of Tubing Packer']  # ft
         injection_date = row['Date of Injection']
 
-        # print(f"Well Depth: {well_total_depth_ft}\nDepth of Packer: {depth_of_tubing_packer}")
-        if injection_pressure_avg_psig == 0:
+        # print(f"Well Depth: {well_total_depth_ft}\nDepth of Packer: {depth_of_tubing_packer}\n
+        #print(f"Injection Pressure: {injection_pressure_avg_psi}")
+        # if injection_pressure_avg_psi == 14.7:
+            # print(f"Injection Pressure is 0")
+        #     print(f"\nAPI Number: {api_number}")
+        #     print(f"Volume Injected (BBLs): {volume_injected}")
+        #     print(f"Injection Pressure Average PSIG: {injection_pressure_avg_psig}")
+        #     print(f"Injection Pressure Average PSI: {injection_pressure_avg_psi}")
+        #     print(f"Well Total Depth (ft): {well_total_depth_ft}")
+        #     print(f"Depth of Tubing Packer (ft): {depth_of_tubing_packer}")
+        #     print(f"Date of Injection: {injection_date}\n")
+        if volume_injected == 0:
             total_bottomhole_pressure = 0
             # print(f"------------------\nBottomhole Pressure: {total_bottomhole_pressure}\n------------------\n")
         else:
             if pd.isna(depth_of_tubing_packer):
-                # deltaP = friction_loss(api_number=api_number, injection_date=injection_date, injected_bbl=volume_injected,
-                #                        packer_depth=well_total_depth_ft)  # in psi
+                # print(f"API NUM: {api_number}\nInjected BBL: {volume_injected}\nInjection Date: {injection_date}\nPacker Depth: {well_total_depth_ft}")
+                # deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft)  # in psi
                 hydrostatic_pressure = float(0.465 * well_total_depth_ft)  # 0.465 psi/ft X depth (ft)
-                total_bottomhole_pressure = float(injection_pressure_avg_psig) + hydrostatic_pressure  # - deltaP
+                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure # - deltaP
 
             else:
-                # deltaP = friction_loss(api_number=api_number, injection_date=injection_date, injected_bbl=volume_injected,
-                #                        packer_depth=depth_of_tubing_packer)  # in psi
+                # deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft)  # in psi
                 hydrostatic_pressure = float(0.465 * depth_of_tubing_packer)  # 0.465 psi/ft X depth (ft)
-                total_bottomhole_pressure = float(injection_pressure_avg_psig) + hydrostatic_pressure  #  - deltaP
+                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure # - deltaP
 
-            # print(f"Injection Pressure: {injection_pressure_avg_psig}\n"
+            # print(f"Injection Pressure: {injection_pressure_avg_psi}\n"
             #       f"Hydrostatic Pressure: {hydrostatic_pressure}\nDeltaP: {deltaP}")
 
-            # print(f"Bottomhole Pressure: {total_bottomhole_pressure}\n------------------\n")
-        # time.sleep(5)
+        # print(f"\nBottomhole Pressure: {total_bottomhole_pressure}\n------------------\n")
         # Append the total_bottomhole_pressure value to the DataFrame as a new column
-        # print("append")
         cleaned_well_data_df.loc[index, 'Bottomhole Pressure'] = total_bottomhole_pressure
 
     return cleaned_well_data_df
@@ -340,8 +367,8 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
 
     # Generate gradient colors for all API numbers
-    deep_colors = generate_gradient_colors(len(sorted_all_distances), "navy", "skyblue")
-    shallow_colors = generate_gradient_colors(len(sorted_all_distances), "darkorange", "gold")
+    deep_colors = generate_gradient_colors(len(sorted_all_distances), "#006400", "#98FB98")
+    shallow_colors = generate_gradient_colors(len(sorted_all_distances), "navy", "#ADD8E6")
 
     # Create a color map for all API numbers
     color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
@@ -383,9 +410,9 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     if x_min <= origin_date_num <= x_max:
         ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                                f'\nOrigin Time: {origin_time}'
-                                                                                f'\nOrigin Date: {origin_date_str}'
-                                                                                f'\nLocal Magnitude: {local_magnitude}'))
+                                                                              f'\nOrigin Time: {origin_time}'
+                                                                              f'\nOrigin Date: {origin_date_str}'
+                                                                              f'\nLocal Magnitude: {local_magnitude}'))
 
     ax1.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Shallow Well')
     ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
@@ -426,9 +453,9 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     if x_min <= origin_date_num <= x_max:
         ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                                f'\nOrigin Time: {origin_time}'
-                                                                                f'\nOrigin Date: {origin_date_str}'
-                                                                                f'\nLocal Magnitude: {local_magnitude}'))
+                                                                              f'\nOrigin Time: {origin_time}'
+                                                                              f'\nOrigin Date: {origin_date_str}'
+                                                                              f'\nLocal Magnitude: {local_magnitude}'))
 
     ax2.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Deep Well')
     ax2.set_xlabel('Date')
@@ -451,6 +478,83 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
     print(f"Pressure plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
+
+def create_well_histogram_per_api(cleaned_well_data_df):
+    # Define the conditions and categories
+    cleaned_well_data_df['Date of Injection'] = pd.to_datetime(cleaned_well_data_df['Date of Injection'],
+                                                               errors='coerce')
+
+    # Define the conditions and categories
+    conditions = [
+        (cleaned_well_data_df['Injection Pressure Average PSIG'].notna() & (
+                cleaned_well_data_df['Injection Pressure Average PSIG'] != 0) &
+         cleaned_well_data_df['Well Total Depth ft'].notna() & (cleaned_well_data_df['Well Total Depth ft'] != 0)),
+        (cleaned_well_data_df['Well Total Depth ft'].notna() & (cleaned_well_data_df['Well Total Depth ft'] != 0) &
+         (cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (
+                 cleaned_well_data_df['Injection Pressure Average PSIG'] == 0))),
+        ((cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (
+                cleaned_well_data_df['Injection Pressure Average PSIG'] == 0)) &
+         (cleaned_well_data_df['Well Total Depth ft'].isna() | (cleaned_well_data_df['Well Total Depth ft'] == 0)))
+    ]
+    categories = ['Complete', 'Incomplete', 'Missing']
+
+    # Apply the conditions to create a new 'Category' column
+    cleaned_well_data_df['Category'] = np.select(conditions, categories, default='Unknown')
+
+    # Extract the month and year from 'Date of Injection'
+    cleaned_well_data_df['Month-Year'] = cleaned_well_data_df['Date of Injection'].dt.to_period('M')
+
+    # Sort the DataFrame by 'Date of Injection'
+    cleaned_well_data_df.sort_values(by='Date of Injection', inplace=True)
+
+    # Group by 'API Number'
+    grouped = cleaned_well_data_df.groupby('API Number')
+
+    for api_number, group in grouped:
+        # Ensure chronological order within each 'Month-Year' by sorting by 'Date of Injection'
+        group = group.sort_values(by='Date of Injection')
+
+        # incomplete_dates = group[group['Category'] == 'Incomplete']['Date of Injection']
+        # print(f"Incomplete dates for API Number {api_number}:")
+        # print(incomplete_dates)
+
+        # Count the occurrences in each category for each date within each month-year
+        category_counts = group.groupby(['Month-Year', 'Date of Injection', 'Category']).size().unstack(
+            fill_value=0).reindex(categories, axis=1, fill_value=0)
+
+        # Reset index to have a flat DataFrame
+        category_counts = category_counts.reset_index()
+
+        # Create a MultiIndex with 'Month-Year' and 'Date of Injection'
+        category_counts.set_index(['Month-Year', 'Date of Injection'], inplace=True)
+
+        # Ensure that within each month, dates are sorted
+        category_counts = category_counts.sort_index(level=['Month-Year', 'Date of Injection'])
+
+        # Accumulate counts within each 'Month-Year'
+        category_counts = category_counts.groupby(level=['Month-Year']).cumsum()
+
+        # Aggregate monthly totals for the final histogram
+        monthly_totals = category_counts.groupby(level='Month-Year').last()
+
+        # Sort categories chronologically within each month
+        monthly_totals = monthly_totals[sorted(categories)]
+
+        # Plot the histogram
+        monthly_totals.plot(kind='bar', stacked=True, figsize=(12, 6))
+        plt.title(f'Well Data for API Number {api_number}')
+        plt.xlabel('Month-Year')
+        plt.ylabel('Number of Records')
+        plt.legend(title='Category')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+
+        # Save the plot to a file
+        plot_filename = os.path.join(OUTPUT_DIR, f'well_data_histogram_{api_number}.png')
+        plt.savefig(plot_filename)
+        plt.close()
+
+
 if len(sys.argv) > 1 and sys.argv[1] == '0':
     print("Click on the following link to fetch earthquake data:")
     earthquake_info_url = "http://scdb.beg.utexas.edu/fdsnws/event/1/builder"
@@ -469,7 +573,7 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
 
     # User-provided values for range_km
     range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
-
+    print(f"Center Lat: {type(earthquake_latitude)}\nLon: {type(earthquake_longitude)}\nRange: {type(range_km)}")
     closest_well_data_df = closest_wells_to_earthquake(center_lat=earthquake_latitude,
                                                        center_lon=earthquake_longitude,
                                                        radius_km=range_km)
@@ -477,8 +581,11 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
     strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
     cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                             earthquake_origin_date, strawn_formation_data)
+    # sample_rows = cleaned_well_data_df.sample(n=5)
+    # print(f"Sample Rows:\n{sample_rows}")
+    # create_well_histogram_per_api(cleaned_well_data_df)
     finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
-    sample_rows = finalized_df.sample(n=5)  # Sample 5 rows
+    # sample_rows = finalized_df.sample(n=5)  # Sample 5 rows
     total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
     plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR)
     quit()
