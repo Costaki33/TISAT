@@ -7,8 +7,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import matplotlib.colors as mcolors
-import colorspacious as csp
+import colorsys
 from math import radians, sin, cos, sqrt, atan2
 from well_data_query import closest_wells_to_earthquake
 from matplotlib.lines import Line2D
@@ -123,33 +122,60 @@ def is_within_one_year(injection_date, one_year_after_earthquake_date):
         return True
 
 
-def generate_gradient_colors(num_colors, start_color, end_color, gamma):
-    # Convert start and end colors to RGB format
-    start_rgb = mcolors.to_rgb(start_color)
-    end_rgb = mcolors.to_rgb(end_color)
+def hsl_to_rgb(h, s, l):
+    """Convert HSL to RGB color space."""
+    c = (1 - abs(2 * l - 1)) * s
+    x = c * (1 - abs((h / 60) % 2 - 1))
+    m = l - c / 2
+    if 0 <= h < 60:
+        r, g, b = c, x, 0
+    elif 60 <= h < 120:
+        r, g, b = x, c, 0
+    elif 120 <= h < 180:
+        r, g, b = 0, c, x
+    elif 180 <= h < 240:
+        r, g, b = 0, x, c
+    elif 240 <= h < 300:
+        r, g, b = x, 0, c
+    else:
+        r, g, b = c, 0, x
+    r, g, b = (r + m), (g + m), (b + m)
+    return int(r * 255), int(g * 255), int(b * 255)
 
-    # Convert RGB to LAB color space
-    start_lab = csp.cspace_convert(start_rgb, "sRGB1", "CIELab")
-    end_lab = csp.cspace_convert(end_rgb, "sRGB1", "CIELab")
 
-    # Generate positions with non-linear transformation for better color distinction
-    if num_colors < 2:
-        return [mcolors.to_hex(mcolors.rgb_to_hsv(start_rgb))] * num_colors
+def hex_to_hsl(hex_color):
+    """Convert HEX color to HSL."""
+    hex_color = hex_color.lstrip('#')
+    r, g, b = tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+    return colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
 
-    position = np.linspace(0, 1, num_colors)
-    position = position ** (1/gamma)  # Apply non-linear transformation
 
-    # Interpolate in the LAB color space
-    interpolated_lab = np.array([np.interp(position, [0, 1], [start_lab[i], end_lab[i]]) for i in range(3)]).T
+def hsl_to_hex(h, s, l):
+    """Convert HSL color to HEX."""
+    r, g, b = hsl_to_rgb(h, s, l)
+    return '#{:02x}{:02x}{:02x}'.format(r, g, b)
 
-    # Convert LAB back to RGB
-    interpolated_rgb = csp.cspace_convert(interpolated_lab, "CIELab", "sRGB1")
 
-    # Ensure RGB values are within the valid range [0, 1]
-    interpolated_rgb = np.clip(interpolated_rgb, 0, 1)
+def adjust_lightness(hex_color, adjustment_factor):
+    """Adjust the lightness of a color."""
+    h, l, s = hex_to_hsl(hex_color)
+    l = max(0, min(1, l * adjustment_factor))
+    return hsl_to_hex(h, s, l)
 
-    # Convert RGB to hex for better compatibility with plotting libraries
-    colors = [mcolors.to_hex(rgb) for rgb in interpolated_rgb]
+
+def generate_gradient_colors(num_colors, start_color, lightness_adjustment=1.0):
+    """Generate a list of distinct gradient colors starting from a given color."""
+    # Convert start color to HSL
+    h, l, s = hex_to_hsl(start_color)
+    # Adjust lightness
+    l = max(0.1, min(0.9, l * lightness_adjustment))
+
+    # Generate distinct colors by varying the hue
+    hue_step = 360 / num_colors
+    colors = []
+    for i in range(num_colors):
+        new_hue = (h * 360 + i * hue_step) % 360
+        colors.append(hsl_to_hex(new_hue, s, l))
 
     return colors
 
@@ -226,7 +252,7 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
         # print(f"Well Depth: {well_total_depth_ft}\nDepth of Packer: {depth_of_tubing_packer}\n
         #print(f"Injection Pressure: {injection_pressure_avg_psi}")
         # if injection_pressure_avg_psi == 14.7:
-            # print(f"Injection Pressure is 0")
+        # print(f"Injection Pressure is 0")
         #     print(f"\nAPI Number: {api_number}")
         #     print(f"Volume Injected (BBLs): {volume_injected}")
         #     print(f"Injection Pressure Average PSIG: {injection_pressure_avg_psig}")
@@ -242,12 +268,12 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
                 # print(f"API NUM: {api_number}\nInjected BBL: {volume_injected}\nInjection Date: {injection_date}\nPacker Depth: {well_total_depth_ft}")
                 # deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft)  # in psi
                 hydrostatic_pressure = float(0.465 * well_total_depth_ft)  # 0.465 psi/ft X depth (ft)
-                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure # - deltaP
+                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure  # - deltaP
 
             else:
                 # deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft)  # in psi
                 hydrostatic_pressure = float(0.465 * depth_of_tubing_packer)  # 0.465 psi/ft X depth (ft)
-                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure # - deltaP
+                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure  # - deltaP
 
             # print(f"Injection Pressure: {injection_pressure_avg_psi}\n"
             #       f"Hydrostatic Pressure: {hydrostatic_pressure}\nDeltaP: {deltaP}")
@@ -367,8 +393,10 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
 
     # Generate gradient colors for all API numbers
-    shallow_colors = generate_gradient_colors(len(sorted_all_distances), "#00008B", "#ADD8E6", gamma=3.0)
-    deep_colors = generate_gradient_colors(len(sorted_all_distances), "#8B0000", "#FFA07A", gamma=3.0)
+    slightly_darker_shallow = adjust_lightness("#FF91A4", 0.85) #FF99AE
+    slightly_darker_deep = adjust_lightness("#7AC5CD", 0.80)
+    shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow)
+    deep_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_deep)
 
     # Create a color map for all API numbers
     color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
@@ -573,7 +601,6 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
 
     # User-provided values for range_km
     range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
-    print(f"Center Lat: {type(earthquake_latitude)}\nLon: {type(earthquake_longitude)}\nRange: {type(range_km)}")
     closest_well_data_df = closest_wells_to_earthquake(center_lat=earthquake_latitude,
                                                        center_lon=earthquake_longitude,
                                                        radius_km=range_km)
