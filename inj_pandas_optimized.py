@@ -517,13 +517,14 @@ def create_well_histogram_per_api(cleaned_well_data_df):
     # Define the conditions and categories
     conditions = [
         (df_copy['Injection Pressure Average PSIG'].notna() & (df_copy['Injection Pressure Average PSIG'] != 0) &
-         df_copy['Well Total Depth ft'].notna() & (df_copy['Well Total Depth ft'] != 0)),
-        (df_copy['Well Total Depth ft'].notna() & (df_copy['Well Total Depth ft'] != 0) &
+         df_copy['Volume Injected (BBLs)'].notna() & (df_copy['Volume Injected (BBLs)'] != 0)),
+        (df_copy['Volume Injected (BBLs)'].notna() & (df_copy['Volume Injected (BBLs)'] != 0) &
          (df_copy['Injection Pressure Average PSIG'].isna() | (df_copy['Injection Pressure Average PSIG'] == 0))),
         ((df_copy['Injection Pressure Average PSIG'].isna() | (df_copy['Injection Pressure Average PSIG'] == 0)) &
-         (df_copy['Well Total Depth ft'].isna() | (df_copy['Well Total Depth ft'] == 0)))
+         (df_copy['Volume Injected (BBLs)'].isna() | (df_copy['Volume Injected (BBLs)'] == 0)))
     ]
-    categories = ['Complete', 'Incomplete', 'Missing']
+    categories = ['Both Volume Injected and Pressure Provided', 'Only Volume Injected Provided',
+                  'Neither Value Provided']
 
     # Apply the conditions to create a new 'Category' column
     df_copy['Category'] = np.select(conditions, categories, default='Unknown')
@@ -543,7 +544,7 @@ def create_well_histogram_per_api(cleaned_well_data_df):
 
         # Count the occurrences in each category for each date within each month-year
         category_counts = group.groupby(['Month-Year', 'Date of Injection', 'Category']).size().unstack(
-            fill_value=0).reindex(categories, axis=1, fill_value=0)
+            fill_value=0).reindex(columns=categories, fill_value=0)
 
         # Reset index to have a flat DataFrame
         category_counts = category_counts.reset_index()
@@ -560,14 +561,14 @@ def create_well_histogram_per_api(cleaned_well_data_df):
         # Aggregate monthly totals for the final histogram
         monthly_totals = category_counts.groupby(level='Month-Year').last()
 
-        # Sort categories chronologically within each month
-        monthly_totals = monthly_totals[sorted(categories)]
+        # Ensure columns are ordered according to 'categories'
+        monthly_totals = monthly_totals.reindex(columns=categories)
 
         # Plot the histogram
         monthly_totals.plot(kind='bar', stacked=True, figsize=(12, 6))
-        plt.title(f'Well Data for API Number {api_number}')
+        plt.title(f'Well Data for API #{api_number}')
         plt.xlabel('Month-Year')
-        plt.ylabel('Number of Records')
+        plt.ylabel('Days')
         plt.legend(title='Category')
         plt.xticks(rotation=45)
         plt.tight_layout()
