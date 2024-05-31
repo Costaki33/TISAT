@@ -309,7 +309,7 @@ def prepare_total_pressure_data_from_df(finalized_df):
     return total_pressure_data, distance_data
 
 
-def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_directory):
+def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_directory, histograms):
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
     deep_pressure_data = defaultdict(list)
@@ -393,9 +393,10 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
 
     # Generate gradient colors for all API numbers
-    slightly_darker_shallow = adjust_lightness("#FFDAB9", 0.55) #FF91A4/7FFFD4
+    slightly_darker_shallow = adjust_lightness("#FFDAB9", 0.55)  # FF91A4/7FFFD4
     slightly_darker_deep = adjust_lightness("#E6E6FA", 0.65)
-    shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow, lightness_adjustment=1)
+    shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow,
+                                              lightness_adjustment=1)
     deep_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_deep, lightness_adjustment=.95)
 
     # Create a color map for all API numbers
@@ -403,9 +404,12 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     color_map_deep = {api_number: color for (api_number, _), color in zip(sorted_all_distances, deep_colors)}
 
     # Create subplots
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 16), sharex=True)
+    num_histograms = len(histograms)
+    num_rows = 2 + num_histograms
+    fig, axes = plt.subplots(num_rows, 1, figsize=(20, 6 * num_rows))
 
     # Plot shallow well data
+    ax1 = axes[0]
     api_legend_map = {}  # Dictionary to map API numbers to legend labels
     api_median_pressure = {}  # Dictionary to store median pressure for each API number over a 3-day span
 
@@ -449,6 +453,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax1.tick_params(axis='x', rotation=45)
 
     # Plot deep well data
+    ax2 = axes[1]
     api_legend_map = {}  # Reset
     api_median_pressure = {}
 
@@ -492,12 +497,21 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
     ax2.tick_params(axis='x', rotation=45)
 
+    # Plot histograms
+    for i, (api_number, histogram) in enumerate(histograms.items()):
+        ax_hist = axes[2 + i]
+        ax_hist.imshow(histogram.canvas.buffer_rgba())
+        ax_hist.axis('off')
+        ax_hist.set_title(f'Histogram for API {api_number}')
+
     # Set major locator and formatter to display ticks for each month
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    plt.subplots_adjust(hspace=0.5)
 
     plot_filename = f'event_{earthquake_info["Event ID"]}_well_total_pressure_plot.png'
     plot_filepath = os.path.join(output_directory, plot_filename)
@@ -528,15 +542,12 @@ def create_well_histogram_per_api(cleaned_well_data_df):
 
     # Apply the conditions to create a new 'Category' column
     df_copy['Category'] = np.select(conditions, categories, default='Unknown')
-
-    # Extract the month and year from 'Date of Injection'
     df_copy['Month-Year'] = df_copy['Date of Injection'].dt.to_period('M')
-
-    # Sort the DataFrame by 'Date of Injection'
     df_copy.sort_values(by='Date of Injection', inplace=True)
 
     # Group by 'API Number'
     grouped = df_copy.groupby('API Number')
+    histograms = {}
 
     for api_number, group in grouped:
         # Ensure chronological order within each 'Month-Year' by sorting by 'Date of Injection'
@@ -546,37 +557,32 @@ def create_well_histogram_per_api(cleaned_well_data_df):
         category_counts = group.groupby(['Month-Year', 'Date of Injection', 'Category']).size().unstack(
             fill_value=0).reindex(columns=categories, fill_value=0)
 
-        # Reset index to have a flat DataFrame
         category_counts = category_counts.reset_index()
-
-        # Create a MultiIndex with 'Month-Year' and 'Date of Injection'
         category_counts.set_index(['Month-Year', 'Date of Injection'], inplace=True)
-
-        # Ensure that within each month, dates are sorted
         category_counts = category_counts.sort_index(level=['Month-Year', 'Date of Injection'])
-
-        # Accumulate counts within each 'Month-Year'
         category_counts = category_counts.groupby(level=['Month-Year']).cumsum()
 
-        # Aggregate monthly totals for the final histogram
         monthly_totals = category_counts.groupby(level='Month-Year').last()
-
-        # Ensure columns are ordered according to 'categories'
         monthly_totals = monthly_totals.reindex(columns=categories)
 
         # Plot the histogram
-        monthly_totals.plot(kind='bar', stacked=True, figsize=(12, 6))
-        plt.title(f'Well Data for API #{api_number}')
-        plt.xlabel('Month-Year')
-        plt.ylabel('Days')
-        plt.legend(title='Category')
-        plt.xticks(rotation=45)
+        fig, ax = plt.subplots(figsize=(12, 6))
+        monthly_totals.plot(kind='bar', stacked=True, ax=ax)
+        ax.set_title(f'Well Data for API #{api_number}')
+        ax.set_xlabel('Month-Year')
+        ax.set_ylabel('Days')
+        ax.legend(title='Category', loc='upper right')
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
         plt.tight_layout()
+
+        histograms[api_number] = fig
 
         # Save the plot to a file
         plot_filename = os.path.join(OUTPUT_DIR, f'well_data_histogram_{api_number}.png')
         plt.savefig(plot_filename)
         plt.close()
+
+    return histograms
 
 
 if len(sys.argv) > 1 and sys.argv[1] == '0':
@@ -604,8 +610,8 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
     strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
     cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                             earthquake_origin_date, strawn_formation_data)
-    create_well_histogram_per_api(cleaned_well_data_df)
+    histograms = create_well_histogram_per_api(cleaned_well_data_df)
     finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
     total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
-    plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR)
+    plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR, histograms)
     quit()
