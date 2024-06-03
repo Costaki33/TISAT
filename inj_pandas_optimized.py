@@ -85,14 +85,11 @@ def classify_well_type(well_lat, well_lon, well_depth, strawn_formation_data):
     dataset_latitudes = strawn_formation_data['lat_wgs84'].values
     dataset_longitudes = strawn_formation_data['lon_wgs84'].values
 
-    # Convert well position to numpy array for vectorized operations
-    well_position = np.array([well_lat, well_lon])
-
-    # Convert dataset positions to numpy array for vectorized operations
-    dataset_positions = np.column_stack((dataset_latitudes, dataset_longitudes))
-
-    # Calculate the Euclidean distance between the well's position and each position in the dataset
-    distances = np.linalg.norm(dataset_positions - well_position, axis=1)
+    # Calculate the Haversine distance between the well's position and each position in the dataset
+    distances = np.array([
+        haversine_distance(well_lat, well_lon, lat, lon)
+        for lat, lon in zip(dataset_latitudes, dataset_longitudes)
+    ])
 
     # Find the index of the position with the minimum distance
     closest_index = np.argmin(distances)
