@@ -17,7 +17,9 @@ tubing_dimensions = [
     [5.5, 4.7],
     [7, 6.3]
 ]
-
+tubing_dim_df = pd.DataFrame(tubing_dimensions, columns=['outer_diameter', 'inner_diameter'])
+pipe_data_df = pd.read_csv(tubing_information)
+pipe_data_df['modified_dt'] = pd.to_datetime(pipe_data_df['modified_dt'])
 
 def parse_tubing_size(size_str):
     # Split the string into parts
@@ -33,13 +35,10 @@ def parse_tubing_size(size_str):
     return None
 
 
-def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft):
+def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft, pipe_data_df=pipe_data_df):
     # For Newtonian Fluids
-    pipe_data_df = pd.read_csv(tubing_information)
-
     # Look for the rows whose API numbers match the one provided
     # Find the row with the closest 'modified_dt' to injection_date
-    pipe_data_df['modified_dt'] = pd.to_datetime(pipe_data_df['modified_dt'])
     matching_rows = pipe_data_df[pipe_data_df['api_no'] == api_number]
 
     if matching_rows.empty:
@@ -49,28 +48,30 @@ def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft):
         closest_row_index = (pipe_data_df['packer_set'] - packer_depth_ft).abs().idxmin()
         closest_row = pipe_data_df.loc[[closest_row_index]]
     else:
-        print("API Number Found")
-        closest_row = matching_rows.iloc[(matching_rows['modified_dt'] - injection_date).abs().argsort()[:1]]
+        # print("API Number Found")
+        closest_row = matching_rows.iloc[
+            (matching_rows['modified_dt'] - pd.to_datetime(injection_date)).abs().argsort()[:1]]
         # print(f"Closest Row:\n{closest_row}")
         # print(f"Packer depth: {packer_depth_ft}")
 
     tubing_size = closest_row['tubing_size'].iloc[0]
-    tubing_size = parse_tubing_size(tubing_size)  # Parse tubing size
+    tubing_size = parse_tubing_size(tubing_size)
 
-    outer_diameter_inches = min(tubing_dimensions, key=lambda x: abs(x[0] - tubing_size))[0]  # in inches
-    inner_diameter_inches = next(item[1] for item in tubing_dimensions if item[0] == outer_diameter_inches)  # in inches
+    outer_diameter_row = tubing_dim_df.iloc[(tubing_dim_df['outer_diameter'] - tubing_size).abs().idxmin()]
+    outer_diameter_inches = outer_diameter_row['outer_diameter']
+    inner_diameter_inches = outer_diameter_row['inner_diameter']
 
     # roh = 64.3 lbm/ft^3 = 1.03-specific gravity water
     # Viscosity of Water at bottomhole conditons = 0.6 cp
     # print(f"Injected BBL: {injected_bbl}\nInner Diameter (in): {inner_diameter_inches}")
-    newtonian_reynolds = (1.48 * injected_bbl * 64.3) / (0.6 * inner_diameter_inches)
+    newtonian_reynolds = (1.48 * injected_bbl * 64.3) / (0.1 * inner_diameter_inches)
     # print(f"Newtonian Reynolds: {newtonian_reynolds}")
 
     if newtonian_reynolds < 2100:  # Laminar Flow
-        print("Laminar Flow")
+        # print("Laminar Flow")
         friction_factor = 16 / newtonian_reynolds
     else:  # Turbulent Flow
-        print("Turbulent Flow")
+        # print("Turbulent Flow")
         # Pipe roughness "We have been using 0.0001 (dimensionless) as an estimate, which is a fairly smooth value."
         friction_factor = colebrook.sjFriction(newtonian_reynolds, roughness=0.0001)
 

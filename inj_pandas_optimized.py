@@ -246,31 +246,24 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
         depth_of_tubing_packer = row['Depth of Tubing Packer']  # ft
         injection_date = row['Date of Injection']
 
-        # print(f"Well Depth: {well_total_depth_ft}\nDepth of Packer: {depth_of_tubing_packer}\n
-        #print(f"Injection Pressure: {injection_pressure_avg_psi}")
-        # if injection_pressure_avg_psi == 14.7:
-        # print(f"Injection Pressure is 0")
-        #     print(f"\nAPI Number: {api_number}")
-        #     print(f"Volume Injected (BBLs): {volume_injected}")
-        #     print(f"Injection Pressure Average PSIG: {injection_pressure_avg_psig}")
-        #     print(f"Injection Pressure Average PSI: {injection_pressure_avg_psi}")
-        #     print(f"Well Total Depth (ft): {well_total_depth_ft}")
-        #     print(f"Depth of Tubing Packer (ft): {depth_of_tubing_packer}")
-        #     print(f"Date of Injection: {injection_date}\n")
-        if volume_injected == 0:
+        if pd.isna(injection_pressure_avg_psig) or float(injection_pressure_avg_psig) == 0:
             total_bottomhole_pressure = 0
-            # print(f"------------------\nBottomhole Pressure: {total_bottomhole_pressure}\n------------------\n")
         else:
             if pd.isna(depth_of_tubing_packer):
-                # print(f"API NUM: {api_number}\nInjected BBL: {volume_injected}\nInjection Date: {injection_date}\nPacker Depth: {well_total_depth_ft}")
-                # deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft)  # in psi
                 hydrostatic_pressure = float(0.465 * well_total_depth_ft)  # 0.465 psi/ft X depth (ft)
-                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure  # - deltaP
+                if volume_injected == 0:
+                    total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure
+                elif volume_injected > 0:
+                    deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft)  # in psi
+                    total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure - deltaP
 
             else:
-                # deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft)  # in psi
                 hydrostatic_pressure = float(0.465 * depth_of_tubing_packer)  # 0.465 psi/ft X depth (ft)
-                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure  # - deltaP
+                if volume_injected == 0:
+                    total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure
+                elif volume_injected > 0:
+                    deltaP = friction_loss(api_number, injection_date, volume_injected, depth_of_tubing_packer)  # in psi
+                    total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure - deltaP
 
             # print(f"Injection Pressure: {injection_pressure_avg_psi}\n"
             #       f"Hydrostatic Pressure: {hydrostatic_pressure}\nDeltaP: {deltaP}")
@@ -562,13 +555,21 @@ def create_well_histogram_per_api(cleaned_well_data_df):
         monthly_totals = category_counts.groupby(level='Month-Year').last()
         monthly_totals = monthly_totals.reindex(columns=categories)
 
+        total_counts = category_counts.sum()
+        total_sum = total_counts.sum()
+        percentages = (total_counts / total_sum) * 100
+
+        # Create legend labels with percentages
+        legend_labels = [f'{category} ({count} records, {percent:.2f}%)'
+                         for category, count, percent in zip(categories, total_counts, percentages)]
+
         # Plot the histogram
         fig, ax = plt.subplots(figsize=(12, 6))
         monthly_totals.plot(kind='bar', stacked=True, ax=ax)
-        ax.set_title(f'Well Data for API #{api_number}')
+        ax.set_title(f'Well Data for API #{api_number} (Total Records: {total_sum})')
         ax.set_xlabel('Month-Year')
         ax.set_ylabel('Days')
-        ax.legend(title='Category', loc='upper right')
+        ax.legend(legend_labels, title='Category', loc='upper right')
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
         plt.tight_layout()
 

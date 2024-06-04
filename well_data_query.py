@@ -78,7 +78,6 @@ def closest_wells_to_earthquake(center_lat, center_lon, radius_km):
         df['Date of Injection'] = pd.to_datetime(df['Date of Injection'], errors='coerce')
         df['Injection End Date'] = pd.to_datetime(df['Injection End Date'], errors='coerce')
         df['Date Added'] = pd.to_datetime(df['Date Added'], errors='coerce')
-
         return df
 
     else:
