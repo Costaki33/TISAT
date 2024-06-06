@@ -453,7 +453,17 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, pressures = zip(*median_pressure_points)
-        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
+        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+
+        # Separate the data points for the category 'Only Volume Injected Provided'
+        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
+                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
+        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
+        category_pressures = category_data['Injection Pressure Average PSIG']
+
+        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
+        ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
+                 markeredgecolor='black', markersize=2.5)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -504,6 +514,16 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
         dates, pressures = zip(*median_pressure_points)
         ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
 
+        # Separate the data points for the category 'Only Volume Injected Provided'
+        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
+                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
+        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
+        category_pressures = category_data['Injection Pressure Average PSIG']
+
+        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
+        ax2.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
+                 markeredgecolor='black', markersize=2.5)
+
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
     for legend_label, _, color in sorted_legend_items:
@@ -549,7 +569,17 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, pressures = zip(*median_pressure_points)
-        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
+        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+
+        # Separate the data points for the category 'Only Volume Injected Provided'
+        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
+                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
+        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
+        category_pressures = category_data['Injection Pressure Average PSIG']
+
+        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
+        ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
+                 markeredgecolor='black', markersize=2.5)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -582,7 +612,17 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
         dates, pressures = zip(*median_pressure_points)
-        ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+
+        # Separate the data points for the category 'Only Volume Injected Provided'
+        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
+                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
+        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
+        category_pressures = category_data['Injection Pressure Average PSIG']
+
+        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
+        ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
+                 markeredgecolor='black', markersize=2.5)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -977,30 +1017,27 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
 
 
 def create_well_histogram_per_api(cleaned_well_data_df, range_km):
-    # Create a copy of the DataFrame
-    df_copy = cleaned_well_data_df.copy()
-
     # Convert 'Date of Injection' to datetime
-    df_copy['Date of Injection'] = pd.to_datetime(df_copy['Date of Injection'], errors='coerce')
+    cleaned_well_data_df['Date of Injection'] = pd.to_datetime(cleaned_well_data_df['Date of Injection'], errors='coerce')
 
     # Define the conditions and categories
     conditions = [
-        (df_copy['Injection Pressure Average PSIG'].notna() & (df_copy['Injection Pressure Average PSIG'] != 0) &
-         df_copy['Volume Injected (BBLs)'].notna()),
-        (df_copy['Volume Injected (BBLs)'].notna() &
-         (df_copy['Injection Pressure Average PSIG'].isna() | (df_copy['Injection Pressure Average PSIG'] == 0))),
-        ((df_copy['Injection Pressure Average PSIG'].isna() | (df_copy['Injection Pressure Average PSIG'] == 0)) &
-         df_copy['Volume Injected (BBLs)'].isna())]
+        (cleaned_well_data_df['Injection Pressure Average PSIG'].notna() & (cleaned_well_data_df['Injection Pressure Average PSIG'] != 0) &
+         cleaned_well_data_df['Volume Injected (BBLs)'].notna()),
+        (cleaned_well_data_df['Volume Injected (BBLs)'].notna() &
+         (cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (cleaned_well_data_df['Injection Pressure Average PSIG'] == 0))),
+        ((cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (cleaned_well_data_df['Injection Pressure Average PSIG'] == 0)) &
+         cleaned_well_data_df['Volume Injected (BBLs)'].isna())]
     categories = ['Both Volume Injected and Pressure Provided', 'Only Volume Injected Provided',
                   'Neither Value Provided']
 
     # Apply the conditions to create a new 'Category' column
-    df_copy['Category'] = np.select(conditions, categories, default='Unknown')
-    df_copy['Month-Year'] = df_copy['Date of Injection'].dt.to_period('M')
-    df_copy.sort_values(by='Date of Injection', inplace=True)
+    cleaned_well_data_df['Category'] = np.select(conditions, categories, default='Unknown')
+    cleaned_well_data_df['Month-Year'] = cleaned_well_data_df['Date of Injection'].dt.to_period('M')
+    cleaned_well_data_df.sort_values(by='Date of Injection', inplace=True)
 
     # Group by 'API Number'
-    grouped = df_copy.groupby('API Number')
+    grouped = cleaned_well_data_df.groupby('API Number')
     histograms = {}
 
     for api_number, group in grouped:
