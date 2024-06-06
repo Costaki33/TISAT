@@ -242,6 +242,7 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
     # Bottomhole pressure = surface pressure + hydrostatic pressure – flowing tubing friction loss
     # Mud weight: JP Nicot, Jun Ge
 
+    deltaP = 0
     for index, row in cleaned_well_data_df.iterrows():
         api_number = row['API Number']
         volume_injected = row['Volume Injected (BBLs)']
@@ -251,25 +252,25 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
         depth_of_tubing_packer = row['Depth of Tubing Packer']  # ft
         injection_date = row['Date of Injection']
 
-        if pd.isna(injection_pressure_avg_psig) or float(injection_pressure_avg_psig) == 0:
-            total_bottomhole_pressure = 0
-        else:
-            if pd.isna(depth_of_tubing_packer):
-                hydrostatic_pressure = float(0.465 * well_total_depth_ft)  # 0.465 psi/ft X depth (ft)
-                if volume_injected == 0:
-                    total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure
-                elif volume_injected > 0:
-                    deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft)  # in psi
-                    total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure - deltaP
+        # if pd.isna(injection_pressure_avg_psig) or float(injection_pressure_avg_psig) == 0:
+        #     total_bottomhole_pressure = 0
+        # else:
+        if pd.isna(depth_of_tubing_packer):
+            hydrostatic_pressure = float(0.465 * well_total_depth_ft)  # 0.465 psi/ft X depth (ft)
+            if volume_injected == 0:
+                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure
+            elif volume_injected > 0:
+                deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft)  # in psi
+                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure - deltaP
 
-            else:
-                hydrostatic_pressure = float(0.465 * depth_of_tubing_packer)  # 0.465 psi/ft X depth (ft)
-                if volume_injected == 0:
-                    total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure
-                elif volume_injected > 0:
-                    deltaP = friction_loss(api_number, injection_date, volume_injected,
-                                           depth_of_tubing_packer)  # in psi
-                    total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure - deltaP
+        else:
+            hydrostatic_pressure = float(0.465 * depth_of_tubing_packer)  # 0.465 psi/ft X depth (ft)
+            if volume_injected == 0:
+                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure
+            elif volume_injected > 0:
+                deltaP = friction_loss(api_number, injection_date, volume_injected,
+                                       depth_of_tubing_packer)  # in psi
+                total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure - deltaP
 
             # print(f"Injection Pressure: {injection_pressure_avg_psi}\n"
             #       f"Hydrostatic Pressure: {hydrostatic_pressure}\nDeltaP: {deltaP}")
@@ -1009,24 +1010,29 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
     plt.subplots_adjust(hspace=0.3)
 
     # Save the plot to a file
-    output_file_path = os.path.join(output_directory, f"daily_deltaP_plot_{earthquake_info['Event ID']}_range{range_km}km.png")
+    output_file_path = os.path.join(output_directory,
+                                    f"daily_deltaP_plot_{earthquake_info['Event ID']}_range{range_km}km.png")
     plt.savefig(output_file_path, bbox_inches='tight')
     plt.close()
 
     print(f"DeltaP plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
-def create_well_histogram_per_api(cleaned_well_data_df, range_km):
+def create_well_histogram_per_api(cleaned_well_data_df, range_km, output_directory=None):
     # Convert 'Date of Injection' to datetime
-    cleaned_well_data_df['Date of Injection'] = pd.to_datetime(cleaned_well_data_df['Date of Injection'], errors='coerce')
+    cleaned_well_data_df['Date of Injection'] = pd.to_datetime(cleaned_well_data_df['Date of Injection'],
+                                                               errors='coerce')
 
     # Define the conditions and categories
     conditions = [
-        (cleaned_well_data_df['Injection Pressure Average PSIG'].notna() & (cleaned_well_data_df['Injection Pressure Average PSIG'] != 0) &
+        (cleaned_well_data_df['Injection Pressure Average PSIG'].notna() & (
+                    cleaned_well_data_df['Injection Pressure Average PSIG'] != 0) &
          cleaned_well_data_df['Volume Injected (BBLs)'].notna()),
         (cleaned_well_data_df['Volume Injected (BBLs)'].notna() &
-         (cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (cleaned_well_data_df['Injection Pressure Average PSIG'] == 0))),
-        ((cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (cleaned_well_data_df['Injection Pressure Average PSIG'] == 0)) &
+         (cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (
+                     cleaned_well_data_df['Injection Pressure Average PSIG'] == 0))),
+        ((cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (
+                    cleaned_well_data_df['Injection Pressure Average PSIG'] == 0)) &
          cleaned_well_data_df['Volume Injected (BBLs)'].isna())]
     categories = ['Both Volume Injected and Pressure Provided', 'Only Volume Injected Provided',
                   'Neither Value Provided']
@@ -1077,46 +1083,93 @@ def create_well_histogram_per_api(cleaned_well_data_df, range_km):
         histograms[api_number] = fig
 
         # Save the plot to a file
-        plot_filename = os.path.join(OUTPUT_DIR, f'well_data_histogram_{api_number}_range{range_km}km.png')
-        plt.savefig(plot_filename)
-        plt.close()
+        if output_directory:
+            plot_filename = os.path.join(output_directory, f'well_data_histogram_{api_number}_range{range_km}km.png')
+            plt.savefig(plot_filename)
+            plt.close()
 
     return histograms
 
 
-if len(sys.argv) > 1 and sys.argv[1] == '0':
-    print("Click on the following link to fetch earthquake data:")
-    earthquake_info_url = "http://scdb.beg.utexas.edu/fdsnws/event/1/builder"
-    print(earthquake_info_url)
+if len(sys.argv) > 1:
+    if sys.argv[1] == '0':
+        print("Click on the following link to fetch earthquake data:")
+        earthquake_info_url = "http://scdb.beg.utexas.edu/fdsnws/event/1/builder"
+        print(earthquake_info_url)
 
-    webbrowser.open(earthquake_info_url)
-    csv_data = input("Enter the earthquake data in CSV format: ")
+        webbrowser.open(earthquake_info_url)
+        csv_data = input("Enter the earthquake data in CSV format: ")
 
-    earthquake_info = get_earthquake_info_from_csv(csv_data)
+        earthquake_info = get_earthquake_info_from_csv(csv_data)
 
-    print(f"\nInformation about the current earthquake:")
-    print(earthquake_info, "\n")
-    earthquake_latitude = earthquake_info['Latitude']
-    earthquake_longitude = earthquake_info['Longitude']
-    earthquake_origin_date = earthquake_info['Origin Date']
+        print(f"\nInformation about the current earthquake:")
+        print(earthquake_info, "\n")
+        earthquake_latitude = earthquake_info['Latitude']
+        earthquake_longitude = earthquake_info['Longitude']
+        earthquake_origin_date = earthquake_info['Origin Date']
 
-    # User-provided values for range_km
-    range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
-    closest_well_data_df = closest_wells_to_earthquake(center_lat=earthquake_latitude,
-                                                       center_lon=earthquake_longitude,
-                                                       radius_km=range_km)
+        # User-provided values for range_km
+        range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
+        closest_well_data_df = closest_wells_to_earthquake(center_lat=earthquake_latitude,
+                                                           center_lon=earthquake_longitude,
+                                                           radius_km=range_km)
 
-    strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
-    cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
-                                            earthquake_origin_date, strawn_formation_data)
-    histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km)
-    finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
+        strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
+        cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
+                                                earthquake_origin_date, strawn_formation_data)
+        histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km)
+        finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 
-    total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
-    daily_injection_data, distance_data2 = prepare_daily_injection_data_from_df(finalized_df)
+        total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
+        daily_injection_data, distance_data2 = prepare_daily_injection_data_from_df(finalized_df)
 
-    plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR, histograms, range_km)
-    plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, OUTPUT_DIR, range_km)
-    plot_daily_deltaP(finalized_df, distance_data, earthquake_info, OUTPUT_DIR, range_km)
+        plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR, histograms, range_km)
+        plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, OUTPUT_DIR, range_km)
+        plot_daily_deltaP(finalized_df, distance_data, earthquake_info, OUTPUT_DIR, range_km)
 
-    quit()
+        quit()
+    elif sys.argv[1] == '1':
+        # Prompt user to input the output directory file path
+        output_dir = input("Enter the output directory file path: ")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        print("Click on the following link to fetch earthquake data:")
+        earthquake_info_url = "http://scdb.beg.utexas.edu/fdsnws/event/1/builder"
+        print(earthquake_info_url)
+
+        webbrowser.open(earthquake_info_url)
+        csv_data = input("Enter the earthquake data in CSV format: ")
+
+        earthquake_info = get_earthquake_info_from_csv(csv_data)
+
+        print(f"\nInformation about the current earthquake:")
+        print(earthquake_info, "\n")
+        earthquake_latitude = earthquake_info['Latitude']
+        earthquake_longitude = earthquake_info['Longitude']
+        earthquake_origin_date = earthquake_info['Origin Date']
+
+        # User-provided values for range_km
+        range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
+        closest_well_data_df = closest_wells_to_earthquake(center_lat=earthquake_latitude,
+                                                           center_lon=earthquake_longitude,
+                                                           radius_km=range_km)
+
+        strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
+        cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
+                                                earthquake_origin_date, strawn_formation_data)
+        histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, output_dir)
+        finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
+
+        total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
+        daily_injection_data, distance_data2 = prepare_daily_injection_data_from_df(finalized_df)
+
+        plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_dir, histograms, range_km)
+        plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, output_dir, range_km)
+        plot_daily_deltaP(finalized_df, distance_data, earthquake_info, output_dir, range_km)
+
+        quit()
+    else:
+        print("Invalid input. Please enter '0' or '1'.")
+else:
+    print("Please provide an input argument ('0' or '1').")
