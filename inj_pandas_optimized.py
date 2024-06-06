@@ -272,6 +272,7 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
         # print(f"\nBottomhole Pressure: {total_bottomhole_pressure}\n------------------\n")
         # Append the total_bottomhole_pressure value to the DataFrame as a new column
         cleaned_well_data_df.loc[index, 'Bottomhole Pressure'] = total_bottomhole_pressure
+        cleaned_well_data_df.loc[index, 'deltaP'] = deltaP
 
     return cleaned_well_data_df
 
@@ -739,6 +740,150 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     print(f"Daily injection plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
+def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, output_directory):
+    # Ensure the 'Date of Injection' column is in datetime format
+    cleaned_well_data_df['Date of Injection'] = pd.to_datetime(cleaned_well_data_df['Date of Injection'])
+
+    # Create separate dictionaries for shallow and deep wells
+    shallow_deltaP_data = defaultdict(list)
+    deep_deltaP_data = defaultdict(list)
+
+    for index, row in cleaned_well_data_df.iterrows():
+        date = row['Date of Injection']
+        api_number = row['API Number']
+        deltaP = row['deltaP']
+        well_type = row['Well Type']
+
+        if well_type == 1:  # Deep well
+            deep_deltaP_data[date].append((api_number, deltaP))
+        elif well_type == 0:  # Shallow well
+            shallow_deltaP_data[date].append((api_number, deltaP))
+
+    # Combine all API numbers from shallow and deep data
+    all_api_numbers = list(set(cleaned_well_data_df['API Number'].unique()))
+    all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
+    sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
+
+    # Generate gradient colors for all API numbers
+    slightly_darker_shallow = adjust_lightness("#FFDAB9", 0.55)  # Light orange color
+    slightly_darker_deep = adjust_lightness("#E6E6FA", 0.65)  # Light purple color
+    shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow,
+                                              lightness_adjustment=1)
+    deep_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_deep, lightness_adjustment=.95)
+
+    # Create a color map for all API numbers
+    color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
+    color_map_deep = {api_number: color for (api_number, _), color in zip(sorted_all_distances, deep_colors)}
+
+    # Create subplots
+    fig, axes = plt.subplots(2, 1, figsize=(20, 12))
+
+    # Plot shallow well data
+    ax1 = axes[0]
+    api_legend_map = {}  # Dictionary to map API numbers to legend labels
+    api_median_deltaP = {}  # Dictionary to store median deltaP for each API number over a 3-day span
+
+    for date, deltaP_points in shallow_deltaP_data.items():
+        api_deltaP_values = {}
+        for api_number, deltaP in deltaP_points:
+            if api_number not in api_deltaP_values:
+                api_deltaP_values[api_number] = []
+            api_deltaP_values[api_number].append(deltaP)
+
+        for api_number, deltaP_values in api_deltaP_values.items():
+            median_deltaP = np.median(deltaP_values)
+            if api_number not in api_median_deltaP:
+                api_median_deltaP[api_number] = []
+            api_median_deltaP[api_number].append((date, median_deltaP))
+
+    for api_number, median_deltaP_points in api_median_deltaP.items():
+        if api_number not in api_legend_map:
+            distance = distance_data.get(api_number, 'N/A')
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
+        dates, deltaPs = zip(*median_deltaP_points)
+        ax1.plot(dates, deltaPs, marker='o', linestyle='', color=color_map_shallow[api_number])
+
+    legend_handles = []
+    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
+    for legend_label, _, color in sorted_legend_items:
+        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+
+    x_min, x_max = ax1.get_xlim()
+    origin_date_str = earthquake_info['Origin Date']
+    origin_date = datetime.datetime.strptime(origin_date_str, '%Y-%m-%d')
+    origin_date_num = mdates.date2num(origin_date)
+    if x_min <= origin_date_num <= x_max:
+        ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                              f'\nOrigin Time: {earthquake_info["Origin Time"]}'
+                                                                              f'\nOrigin Date: {origin_date_str}'
+                                                                              f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'))
+
+    ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Shallow Well')
+    ax1.set_ylabel('Daily deltaP (psi)')
+    ax1.set_xlabel('Date')
+    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
+    ax1.xaxis.set_major_locator(mdates.MonthLocator())
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    ax1.tick_params(axis='x', rotation=45)
+
+    # Plot deep well data
+    ax2 = axes[1]
+    api_legend_map = {}  # Dictionary to map API numbers to legend labels
+    api_median_deltaP = {}  # Dictionary to store median deltaP for each API number over a 3-day span
+
+    for date, deltaP_points in deep_deltaP_data.items():
+        api_deltaP_values = {}
+        for api_number, deltaP in deltaP_points:
+            if api_number not in api_deltaP_values:
+                api_deltaP_values[api_number] = []
+            api_deltaP_values[api_number].append(deltaP)
+
+        for api_number, deltaP_values in api_deltaP_values.items():
+            median_deltaP = np.median(deltaP_values)
+            if api_number not in api_median_deltaP:
+                api_median_deltaP[api_number] = []
+            api_median_deltaP[api_number].append((date, median_deltaP))
+
+    for api_number, median_deltaP_points in api_median_deltaP.items():
+        if api_number not in api_legend_map:
+            distance = distance_data.get(api_number, 'N/A')
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
+        dates, deltaPs = zip(*median_deltaP_points)
+        ax2.plot(dates, deltaPs, marker='o', linestyle='', color=color_map_deep[api_number])
+
+    legend_handles = []
+    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
+    for legend_label, _, color in sorted_legend_items:
+        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+
+    x_min, x_max = ax2.get_xlim()
+    if x_min <= origin_date_num <= x_max:
+        ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                              f'\nOrigin Time: {earthquake_info["Origin Time"]}'
+                                                                              f'\nOrigin Date: {origin_date_str}'
+                                                                              f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'))
+
+    ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Deep Well')
+    ax2.set_ylabel('Daily deltaP (psi)')
+    ax2.set_xlabel('Date')
+    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
+    ax2.xaxis.set_major_locator(mdates.MonthLocator())
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    ax2.tick_params(axis='x', rotation=45)
+
+    # Adjust the layout
+    plt.tight_layout()
+
+    # Save the plot to a file
+    output_file_path = os.path.join(output_directory, f"daily_deltaP_plot_{earthquake_info['Event ID']}.png")
+    plt.savefig(output_file_path, bbox_inches='tight')
+    plt.close()
+
+    print(f"DeltaP plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
+
+
 def create_well_histogram_per_api(cleaned_well_data_df):
     # Create a copy of the DataFrame
     df_copy = cleaned_well_data_df.copy()
@@ -837,8 +982,12 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
                                             earthquake_origin_date, strawn_formation_data)
     histograms = create_well_histogram_per_api(cleaned_well_data_df)
     finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
+
     total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
     daily_injection_data, distance_data2 = prepare_daily_injection_data_from_df(finalized_df)
+
     plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR, histograms)
     plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, OUTPUT_DIR)
+    plot_daily_deltaP(finalized_df, distance_data, earthquake_info, OUTPUT_DIR)
+
     quit()
