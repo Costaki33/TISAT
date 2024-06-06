@@ -450,7 +450,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, pressures = zip(*median_pressure_points)
-        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number])
+        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -494,7 +494,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
         dates, pressures = zip(*median_pressure_points)
-        ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number])
+        ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -660,7 +660,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, injections = zip(*median_injection_points)
-        ax1.plot(dates, injections, marker='o', linestyle='', color=color_map_shallow[api_number])
+        ax1.plot(dates, injections, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -706,7 +706,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
         dates, injections = zip(*median_injection_points)
-        ax2.plot(dates, injections, marker='o', linestyle='', color=color_map_deep[api_number])
+        ax2.plot(dates, injections, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -801,7 +801,7 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, deltaPs = zip(*median_deltaP_points)
-        ax1.plot(dates, deltaPs, marker='o', linestyle='', color=color_map_shallow[api_number])
+        ax1.plot(dates, deltaPs, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -850,7 +850,7 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
         dates, deltaPs = zip(*median_deltaP_points)
-        ax2.plot(dates, deltaPs, marker='o', linestyle='', color=color_map_deep[api_number])
+        ax2.plot(dates, deltaPs, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
