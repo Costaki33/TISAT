@@ -328,7 +328,7 @@ def prepare_daily_injection_data_from_df(finalized_df):
     return daily_injection_data, distance_data
 
 
-def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_directory, histograms):
+def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_directory, histograms, range_km):
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
     deep_pressure_data = defaultdict(list)
@@ -390,7 +390,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
                     shallow_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
 
     # Save deep well pressure data to a text file
-    deep_filename = os.path.join(output_directory, f'deep_well_pressure_data_{earthquake_info["Event ID"]}.txt')
+    deep_filename = os.path.join(output_directory, f'deep_well_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
     with open(deep_filename, 'w') as f:
         f.write("Date\tAPI Number\tPressure (PSI)\n")
         for date, pressure_points in deep_pressure_data.items():
@@ -399,7 +399,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
     # Save shallow well pressure data to a text file
     shallow_filename = os.path.join(output_directory,
-                                    f'shallow_well_pressure_data_{earthquake_info["Event ID"]}.txt')
+                                    f'shallow_well_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
     with open(shallow_filename, 'w') as f:
         f.write("Date\tAPI Number\tPressure (PSI)\n")
         for date, pressure_points in shallow_pressure_data.items():
@@ -458,9 +458,10 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'))
+                                                                              f'\nLocal Magnitude: {local_magnitude}'
+                                                                              f'\nRange: {range_km} km'))
 
-    ax1.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Shallow Well')
+    ax1.set_title(f'event_{earthquake_info["Event ID"]} Bottomhole Pressure Data - Shallow Well ({range_km} KM Range)')
     ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
     ax1.grid(True)
     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
@@ -471,7 +472,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 
     # Save shallow well plot
-    shallow_plot_filename = f'event_{earthquake_info["Event ID"]}_shallow_well_pressure_plot.png'
+    shallow_plot_filename = f'event_{earthquake_info["Event ID"]}_shallow_well_pressure_plot_range{range_km}km.png'
     shallow_plot_filepath = os.path.join(output_directory, shallow_plot_filename)
     fig.savefig(shallow_plot_filepath)
     plt.close(fig)
@@ -512,9 +513,10 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'))
+                                                                              f'\nLocal Magnitude: {local_magnitude}'
+                                                                              f'\nRange {range_km} km'))
 
-    ax2.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Deep Well')
+    ax2.set_title(f'event_{earthquake_info["Event ID"]} Bottomhole Pressure Data - Deep Well ({range_km} KM Range)')
     ax2.set_xlabel('Date')
     ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
     ax2.grid(True)
@@ -526,7 +528,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 
     # Save deep well plot
-    deep_plot_filename = f'event_{earthquake_info["Event ID"]}_deep_well_pressure_plot.png'
+    deep_plot_filename = f'event_{earthquake_info["Event ID"]}_deep_well_pressure_plot_range{range_km}km.png'
     deep_plot_filepath = os.path.join(output_directory, deep_plot_filename)
     fig.savefig(deep_plot_filepath)
     plt.close(fig)
@@ -556,9 +558,10 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'))
+                                                                              f'\nLocal Magnitude: {local_magnitude}'
+                                                                              f'\nRange: {range_km} km'))
 
-    ax1.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Shallow Well')
+    ax1.set_title(f'event_{earthquake_info["Event ID"]} Bottomhole Pressure Data - Shallow Well ({range_km} KM Range)')
     ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
     ax1.grid(True)
     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
@@ -588,9 +591,10 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'))
+                                                                              f'\nLocal Magnitude: {local_magnitude}'
+                                                                              f'\nRange: {range_km} km'))
 
-    ax2.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Deep Well')
+    ax2.set_title(f'event_{earthquake_info["Event ID"]} Bottomhole Pressure Data - Deep Well ({range_km} KM Range)')
     ax2.set_xlabel('Date')
     ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
     ax2.grid(True)
@@ -606,11 +610,11 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
         ax_hist = axes[2 + i]
         ax_hist.imshow(histogram.canvas.buffer_rgba())
         ax_hist.axis('off')
-        ax_hist.set_title(f'Histogram for API {api_number}')
+        ax_hist.set_title(f'Histogram for API {api_number} ({range_km} KM Range)')
 
     plt.subplots_adjust(hspace=0.5)
 
-    plot_filename = f'event_{earthquake_info["Event ID"]}_well_total_pressure_plot.png'
+    plot_filename = f'event_{earthquake_info["Event ID"]}_well_total_pressure_plot_range{range_km}km.png'
     plot_filepath = os.path.join(output_directory, plot_filename)
     plt.savefig(plot_filepath)
     plt.close()
@@ -618,7 +622,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     print(f"Pressure plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
-def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, output_directory):
+def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, output_directory, range_km):
     # Create a defaultdict to store the daily injection for each date
     daily_injection_by_date = defaultdict(float)
     deep_injection_data = defaultdict(list)
@@ -680,7 +684,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                     shallow_injection_data[date].append((api_number, injection))  # Include API number with injection
 
     # Save deep well injection data to a text file
-    deep_filename = os.path.join(output_directory, f'deep_well_injection_data_{earthquake_info["Event ID"]}.txt')
+    deep_filename = os.path.join(output_directory, f'deep_well_injection_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
     with open(deep_filename, 'w') as f:
         f.write("Date\tAPI Number\tInjection (BBLs)\n")
         for date, injection_points in deep_injection_data.items():
@@ -689,7 +693,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
 
     # Save shallow well injection data to a text file
     shallow_filename = os.path.join(output_directory,
-                                    f'shallow_well_injection_data_{earthquake_info["Event ID"]}.txt')
+                                    f'shallow_well_injection_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
     with open(shallow_filename, 'w') as f:
         f.write("Date\tAPI Number\tInjection (BBLs)\n")
         for date, injection_points in shallow_injection_data.items():
@@ -751,9 +755,10 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'))
+                                                                              f'\nLocal Magnitude: {local_magnitude}'
+                                                                              f'\nRange: {range_km} km'))
 
-    ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily Injection Data - Shallow Well')
+    ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily Injection Data - Shallow Well ({range_km} KM Range)')
     ax1.set_ylabel('Daily Injection (BBLs)')
     ax1.set_xlabel('Date')
     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
@@ -797,9 +802,10 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'))
+                                                                              f'\nLocal Magnitude: {local_magnitude}'
+                                                                              f'\nRange: {range_km} km'))
 
-    ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily Injection Data - Deep Well')
+    ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily Injection Data - Deep Well ({range_km} KM Range)')
     ax2.set_ylabel('Daily Injection (BBLs)')
     ax2.set_xlabel('Date')
     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
@@ -811,14 +817,14 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     plt.tight_layout()
 
     # Save the plot to a file
-    output_file_path = os.path.join(output_directory, f"daily_injection_plot_{earthquake_info['Event ID']}.png")
+    output_file_path = os.path.join(output_directory, f"daily_injection_plot_{earthquake_info['Event ID']}_range{range_km}km.png")
     plt.savefig(output_file_path, bbox_inches='tight')
     plt.close()
 
     print(f"Daily injection plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
-def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, output_directory):
+def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, output_directory, range_km):
     # Ensure the 'Date of Injection' column is in datetime format
     cleaned_well_data_df['Date of Injection'] = pd.to_datetime(cleaned_well_data_df['Date of Injection'])
 
@@ -897,7 +903,7 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
                                                                               f'\nOrigin Date: {origin_date_str}'
                                                                               f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'))
 
-    ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Shallow Well')
+    ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Shallow Well ({range_km} KM Range)')
     ax1.set_ylabel('Daily deltaP (psi)')
     ax1.set_xlabel('Date')
     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
@@ -943,7 +949,7 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
                                                                               f'\nOrigin Date: {origin_date_str}'
                                                                               f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'))
 
-    ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Deep Well')
+    ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Deep Well ({range_km} KM Range)')
     ax2.set_ylabel('Daily deltaP (psi)')
     ax2.set_xlabel('Date')
     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
@@ -962,7 +968,7 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
     print(f"DeltaP plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
-def create_well_histogram_per_api(cleaned_well_data_df):
+def create_well_histogram_per_api(cleaned_well_data_df, range_km):
     # Create a copy of the DataFrame
     df_copy = cleaned_well_data_df.copy()
 
@@ -1016,7 +1022,7 @@ def create_well_histogram_per_api(cleaned_well_data_df):
         # Plot the histogram
         fig, ax = plt.subplots(figsize=(12, 6))
         monthly_totals.plot(kind='bar', stacked=True, ax=ax)
-        ax.set_title(f'Well Data for API #{api_number} (Total Records: {total_sum})')
+        ax.set_title(f'Well Data for API #{api_number} (Total Records: {total_sum}) ({range_km} KM Range)')
         ax.set_xlabel('Month-Year')
         ax.set_ylabel('Days')
         ax.legend(legend_labels, title='Category', loc='upper right')
@@ -1026,7 +1032,7 @@ def create_well_histogram_per_api(cleaned_well_data_df):
         histograms[api_number] = fig
 
         # Save the plot to a file
-        plot_filename = os.path.join(OUTPUT_DIR, f'well_data_histogram_{api_number}.png')
+        plot_filename = os.path.join(OUTPUT_DIR, f'well_data_histogram_{api_number}_range{range_km}km.png')
         plt.savefig(plot_filename)
         plt.close()
 
@@ -1058,14 +1064,14 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
     strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
     cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                             earthquake_origin_date, strawn_formation_data)
-    histograms = create_well_histogram_per_api(cleaned_well_data_df)
+    histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km)
     finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 
     total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
     daily_injection_data, distance_data2 = prepare_daily_injection_data_from_df(finalized_df)
 
-    plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR, histograms)
-    plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, OUTPUT_DIR)
-    plot_daily_deltaP(finalized_df, distance_data, earthquake_info, OUTPUT_DIR)
+    plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR, histograms, range_km)
+    plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, OUTPUT_DIR, range_km)
+    plot_daily_deltaP(finalized_df, distance_data, earthquake_info, OUTPUT_DIR, range_km)
 
     quit()
