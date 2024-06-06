@@ -422,13 +422,8 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
     color_map_deep = {api_number: color for (api_number, _), color in zip(sorted_all_distances, deep_colors)}
 
-    # Create subplots
-    num_histograms = len(histograms)
-    num_rows = 2 + num_histograms
-    fig, axes = plt.subplots(num_rows, 1, figsize=(20, 6 * num_rows))
-
     # Plot shallow well data
-    ax1 = axes[0]
+    fig, ax1 = plt.subplots(figsize=(20, 12))
     api_legend_map = {}  # Dictionary to map API numbers to legend labels
     api_median_pressure = {}  # Dictionary to store median pressure for each API number over a 3-day span
 
@@ -471,8 +466,18 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
     ax1.tick_params(axis='x', rotation=45)
 
+    # Set major locator and formatter to display ticks for each month
+    ax1.xaxis.set_major_locator(mdates.MonthLocator())
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    # Save shallow well plot
+    shallow_plot_filename = f'event_{earthquake_info["Event ID"]}_shallow_well_pressure_plot.png'
+    shallow_plot_filepath = os.path.join(output_directory, shallow_plot_filename)
+    fig.savefig(shallow_plot_filepath)
+    plt.close(fig)
+
     # Plot deep well data
-    ax2 = axes[1]
+    fig, ax2 = plt.subplots(figsize=(20, 12))
     api_legend_map = {}  # Reset
     api_median_pressure = {}
 
@@ -516,19 +521,92 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
     ax2.tick_params(axis='x', rotation=45)
 
+    # Set major locator and formatter to display ticks for each month
+    ax2.xaxis.set_major_locator(mdates.MonthLocator())
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    # Save deep well plot
+    deep_plot_filename = f'event_{earthquake_info["Event ID"]}_deep_well_pressure_plot.png'
+    deep_plot_filepath = os.path.join(output_directory, deep_plot_filename)
+    fig.savefig(deep_plot_filepath)
+    plt.close(fig)
+
+    # Combine all plots into a single figure with histograms
+    num_histograms = len(histograms)
+    num_rows = 2 + num_histograms
+    fig, axes = plt.subplots(num_rows, 1, figsize=(20, 8 * num_rows))  # Increased figure size for combined plot
+
+    # Re-plot shallow well data in the combined figure
+    ax1 = axes[0]
+    for api_number, median_pressure_points in api_median_pressure.items():
+        if api_number not in api_legend_map:
+            distance = distance_data.get(api_number, 'N/A')
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
+        dates, pressures = zip(*median_pressure_points)
+        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
+
+    legend_handles = []
+    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
+    for legend_label, _, color in sorted_legend_items:
+        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+
+    x_min, x_max = ax1.get_xlim()
+    if x_min <= origin_date_num <= x_max:
+        ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                              f'\nOrigin Time: {origin_time}'
+                                                                              f'\nOrigin Date: {origin_date_str}'
+                                                                              f'\nLocal Magnitude: {local_magnitude}'))
+
+    ax1.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Shallow Well')
+    ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
+    ax1.grid(True)
+    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
+    ax1.tick_params(axis='x', rotation=45)
+
+    # Set major locator and formatter to display ticks for each month
+    ax1.xaxis.set_major_locator(mdates.MonthLocator())
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    # Re-plot deep well data in the combined figure
+    ax2 = axes[1]
+    for api_number, median_pressure_points in api_median_pressure.items():
+        if api_number not in api_legend_map:
+            distance = distance_data.get(api_number, 'N/A')
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
+        dates, pressures = zip(*median_pressure_points)
+        ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+
+    legend_handles = []
+    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
+    for legend_label, _, color in sorted_legend_items:
+        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+
+    x_min, x_max = ax2.get_xlim()
+    if x_min <= origin_date_num <= x_max:
+        ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                              f'\nOrigin Time: {origin_time}'
+                                                                              f'\nOrigin Date: {origin_date_str}'
+                                                                              f'\nLocal Magnitude: {local_magnitude}'))
+
+    ax2.set_title(f'event_{earthquake_info["Event ID"]} Total Pressure Data - Deep Well')
+    ax2.set_xlabel('Date')
+    ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
+    ax2.grid(True)
+    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
+    ax2.tick_params(axis='x', rotation=45)
+
+    # Set major locator and formatter to display ticks for each month
+    ax2.xaxis.set_major_locator(mdates.MonthLocator())
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
     # Plot histograms
     for i, (api_number, histogram) in enumerate(histograms.items()):
         ax_hist = axes[2 + i]
         ax_hist.imshow(histogram.canvas.buffer_rgba())
         ax_hist.axis('off')
         ax_hist.set_title(f'Histogram for API {api_number}')
-
-    # Set major locator and formatter to display ticks for each month
-    ax1.xaxis.set_major_locator(mdates.MonthLocator())
-    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-
-    ax2.xaxis.set_major_locator(mdates.MonthLocator())
-    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 
     plt.subplots_adjust(hspace=0.5)
 
