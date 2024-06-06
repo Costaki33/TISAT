@@ -2,21 +2,26 @@ import os
 import sys
 import csv
 import datetime
+import colorsys
+import warnings
 import webbrowser
-import pandas as pd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import colorsys
-from math import radians, sin, cos, sqrt, atan2
-from well_data_query import closest_wells_to_earthquake
+from collections import defaultdict
 from matplotlib.lines import Line2D
 from friction_loss_calc import friction_loss
-from collections import defaultdict
+from math import radians, sin, cos, sqrt, atan2
+from pandas.errors import SettingWithCopyWarning
+from well_data_query import closest_wells_to_earthquake
 
 # GLOBAL VARIABLES AND FILE PATHS
 STRAWN_FORMATION_DATA_FILE_PATH = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
 OUTPUT_DIR = '/home/skevofilaxc/Documents/earthquake_plots'
+
+# Filter out SettingWithCopyWarning
+warnings.filterwarnings("ignore", category=SettingWithCopyWarning)
 
 
 def get_earthquake_info_from_csv(csv_string):
@@ -390,7 +395,8 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
                     shallow_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
 
     # Save deep well pressure data to a text file
-    deep_filename = os.path.join(output_directory, f'deep_well_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
+    deep_filename = os.path.join(output_directory,
+                                 f'deep_well_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
     with open(deep_filename, 'w') as f:
         f.write("Date\tAPI Number\tPressure (PSI)\n")
         for date, pressure_points in deep_pressure_data.items():
@@ -523,8 +529,10 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 
+    plt.subplots_adjust(hspace=0.5)
+
     # Save combined plot
-    combined_plot_filename = f'event_{earthquake_info["Event ID"]}_combined_well_pressure_plot_range{range_km}km.png'
+    combined_plot_filename = f'event_{earthquake_info["Event ID"]}_combined_bottomhole_pressure_plot_range{range_km}km.png'
     combined_plot_filepath = os.path.join(output_directory, combined_plot_filename)
     plt.savefig(combined_plot_filepath)
     plt.close()
@@ -610,7 +618,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
     plt.subplots_adjust(hspace=0.5)
 
-    plot_filename = f'event_{earthquake_info["Event ID"]}_well_total_pressure_plot_range{range_km}km.png'
+    plot_filename = f'event_{earthquake_info["Event ID"]}_bottomhole_pressure_plot_with_hist_range{range_km}km.png'
     plot_filepath = os.path.join(output_directory, plot_filename)
     plt.savefig(plot_filepath)
     plt.close()
@@ -812,6 +820,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
 
     # Adjust the layout
     plt.tight_layout()
+    plt.subplots_adjust(hspace=0.3)
 
     # Save the plot to a file
     output_file_path = os.path.join(output_directory,
@@ -957,9 +966,10 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
 
     # Adjust the layout
     plt.tight_layout()
+    plt.subplots_adjust(hspace=0.3)
 
     # Save the plot to a file
-    output_file_path = os.path.join(output_directory, f"daily_deltaP_plot_{earthquake_info['Event ID']}.png")
+    output_file_path = os.path.join(output_directory, f"daily_deltaP_plot_{earthquake_info['Event ID']}_range{range_km}km.png")
     plt.savefig(output_file_path, bbox_inches='tight')
     plt.close()
 
