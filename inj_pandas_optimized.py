@@ -464,7 +464,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
         # Plot the data points for the category 'Only Volume Injected Provided' with an outline
         ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
-                 markeredgecolor='black', markersize=2.5)
+                 markeredgecolor='black', markersize=2.2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -523,7 +523,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
         # Plot the data points for the category 'Only Volume Injected Provided' with an outline
         ax2.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
-                 markeredgecolor='black', markersize=2.5)
+                 markeredgecolor='black', markersize=2.2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -580,7 +580,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
         # Plot the data points for the category 'Only Volume Injected Provided' with an outline
         ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
-                 markeredgecolor='black', markersize=2.5)
+                 markeredgecolor='black', markersize=2.2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -623,7 +623,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
         # Plot the data points for the category 'Only Volume Injected Provided' with an outline
         ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
-                 markeredgecolor='black', markersize=2.5)
+                 markeredgecolor='black', markersize=2.2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -952,7 +952,7 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
                                                                               f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'))
 
     ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Shallow Well ({range_km} KM Range)')
-    ax1.set_ylabel('Daily deltaP (psi)')
+    ax1.set_ylabel('Daily Tubing Friction Loss (PSI)')
     ax1.set_xlabel('Date')
     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
@@ -998,7 +998,7 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
                                                                               f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'))
 
     ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Deep Well ({range_km} KM Range)')
-    ax2.set_ylabel('Daily deltaP (psi)')
+    ax2.set_ylabel('Daily Tubing Friction Loss (PSI)')
     ax2.set_xlabel('Date')
     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
@@ -1117,7 +1117,7 @@ if len(sys.argv) > 1:
         strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
         cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                                 earthquake_origin_date, strawn_formation_data)
-        histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km)
+        histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, OUTPUT_DIR)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 
         total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
