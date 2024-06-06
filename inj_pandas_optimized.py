@@ -262,7 +262,8 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
                 if volume_injected == 0:
                     total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure
                 elif volume_injected > 0:
-                    deltaP = friction_loss(api_number, injection_date, volume_injected, depth_of_tubing_packer)  # in psi
+                    deltaP = friction_loss(api_number, injection_date, volume_injected,
+                                           depth_of_tubing_packer)  # in psi
                     total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure - deltaP
 
             # print(f"Injection Pressure: {injection_pressure_avg_psi}\n"
@@ -297,6 +298,33 @@ def prepare_total_pressure_data_from_df(finalized_df):
         total_pressure_data[api_number][date_of_injection] = bottomhole_pressure
 
     return total_pressure_data, distance_data
+
+
+def prepare_daily_injection_data_from_df(finalized_df):
+    daily_injection_data = defaultdict(dict)
+    distance_data = {}
+
+    for index, row in finalized_df.iterrows():
+        api_number = row['API Number']
+        date_of_injection = row['Date of Injection']
+        volume_injected = row['Volume Injected (BBLs)']
+        well_type = row['Well Type']
+        distance = row['Distance from Earthquake (km)']
+
+        # Convert date_of_injection to a datetime object
+        if isinstance(date_of_injection, str):
+            date_of_injection = datetime.datetime.strptime(date_of_injection, '%Y-%m-%d')
+
+        if api_number not in daily_injection_data:
+            daily_injection_data[api_number] = {'TYPE': well_type}
+            distance_data[api_number] = distance  # Store the distance for each API number
+
+        if date_of_injection not in daily_injection_data[api_number]:
+            daily_injection_data[api_number][date_of_injection] = 0
+
+        daily_injection_data[api_number][date_of_injection] += volume_injected
+
+    return daily_injection_data, distance_data
 
 
 def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_directory, histograms):
@@ -511,6 +539,206 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     print(f"Pressure plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
+def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, output_directory):
+    # Create a defaultdict to store the daily injection for each date
+    daily_injection_by_date = defaultdict(float)
+    deep_injection_data = defaultdict(list)
+    shallow_injection_data = defaultdict(list)
+    all_api_nums = []  # list to store all the API numbers for plot label
+    origin_date_str = earthquake_info['Origin Date']  # Use earthquake origin date directly
+    origin_time = earthquake_info['Origin Time']
+    local_magnitude = earthquake_info['Local Magnitude']
+    origin_date = datetime.datetime.strptime(origin_date_str, '%Y-%m-%d')
+    origin_date_num = mdates.date2num(origin_date)
+
+    if not daily_injection_data:
+        print("No data to plot.")
+        return
+
+    # Check if daily_injection_data is a dictionary
+    if not isinstance(daily_injection_data, dict):
+        print("Invalid data format. Expected a dictionary.")
+        return
+
+    for api_number, api_data in daily_injection_data.items():
+        # Flatten the dictionary keys into separate lists
+        try:
+            unconverted_tuple_dates, injections = zip(*api_data.items())
+            all_api_nums.append(api_number)
+        except (TypeError, ValueError):
+            print(f"Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
+            continue
+
+        # Use unconverted_tuple_dates directly since it's already a tuple
+        for date, daily_injection in zip(unconverted_tuple_dates, injections):
+            if date == 'TYPE':  # Skip 'TYPE' entries
+                continue
+            daily_injection_by_date[date] += daily_injection
+
+    dates, daily_injection_values = zip(*daily_injection_by_date.items())
+
+    # Convert all date strings to datetime objects
+    dates = [datetime.datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S') if isinstance(date_str, str) else date_str for
+             date_str in dates]
+
+    # Sort the dates and corresponding injections by date
+    sorted_data = sorted(zip(dates, daily_injection_values), key=lambda x: x[0])
+
+    # Unpack the sorted data
+    sorted_dates, sorted_daily_injection_values = zip(*sorted_data)
+
+    # Convert datetime objects to strings
+    date_strings = [date.strftime('%Y-%m-%d') for date in sorted_dates]
+
+    for api_number, data in daily_injection_data.items():
+        if data['TYPE'] == 1:
+            for date, injection in data.items():
+                if date != 'TYPE':
+                    deep_injection_data[date].append((api_number, injection))  # Include API number with injection
+        elif data['TYPE'] == 0:
+            for date, injection in data.items():
+                if date != 'TYPE':
+                    shallow_injection_data[date].append((api_number, injection))  # Include API number with injection
+
+    # Save deep well injection data to a text file
+    deep_filename = os.path.join(output_directory, f'deep_well_injection_data_{earthquake_info["Event ID"]}.txt')
+    with open(deep_filename, 'w') as f:
+        f.write("Date\tAPI Number\tInjection (BBLs)\n")
+        for date, injection_points in deep_injection_data.items():
+            for api_number, injection in injection_points:
+                f.write(f"{date}\t{api_number}\t{injection}\n")
+
+    # Save shallow well injection data to a text file
+    shallow_filename = os.path.join(output_directory,
+                                    f'shallow_well_injection_data_{earthquake_info["Event ID"]}.txt')
+    with open(shallow_filename, 'w') as f:
+        f.write("Date\tAPI Number\tInjection (BBLs)\n")
+        for date, injection_points in shallow_injection_data.items():
+            for api_number, injection in injection_points:
+                f.write(f"{date}\t{api_number}\t{injection}\n")
+
+    # Combine all API numbers from shallow and deep data
+    all_api_numbers = list(set(all_api_nums))
+    all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
+    sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
+
+    # Generate gradient colors for all API numbers
+    slightly_darker_shallow = adjust_lightness("#FFDAB9", 0.55)  # FF91A4/7FFFD4
+    slightly_darker_deep = adjust_lightness("#E6E6FA", 0.65)
+    shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow,
+                                              lightness_adjustment=1)
+    deep_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_deep, lightness_adjustment=.95)
+
+    # Create a color map for all API numbers
+    color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
+    color_map_deep = {api_number: color for (api_number, _), color in zip(sorted_all_distances, deep_colors)}
+
+    # Create subplots
+    fig, axes = plt.subplots(2, 1, figsize=(20, 12))
+
+    # Plot shallow well data
+    ax1 = axes[0]
+    api_legend_map = {}  # Dictionary to map API numbers to legend labels
+    api_median_injection = {}  # Dictionary to store median injection for each API number over a 3-day span
+
+    for date, injection_points in shallow_injection_data.items():
+        api_injection_values = {}
+        for api_number, injection in injection_points:
+            if api_number not in api_injection_values:
+                api_injection_values[api_number] = []
+            api_injection_values[api_number].append(injection)
+
+        for api_number, injection_values in api_injection_values.items():
+            median_injection = np.median(injection_values)
+            if api_number not in api_median_injection:
+                api_median_injection[api_number] = []
+            api_median_injection[api_number].append((date, median_injection))
+
+    for api_number, median_injection_points in api_median_injection.items():
+        if api_number not in api_legend_map:
+            distance = distance_data.get(api_number, 'N/A')
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
+        dates, injections = zip(*median_injection_points)
+        ax1.plot(dates, injections, marker='o', linestyle='', color=color_map_shallow[api_number])
+
+    legend_handles = []
+    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
+    for legend_label, _, color in sorted_legend_items:
+        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+
+    x_min, x_max = ax1.get_xlim()
+    if x_min <= origin_date_num <= x_max:
+        ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                              f'\nOrigin Time: {origin_time}'
+                                                                              f'\nOrigin Date: {origin_date_str}'
+                                                                              f'\nLocal Magnitude: {local_magnitude}'))
+
+    ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily Injection Data - Shallow Well')
+    ax1.set_ylabel('Daily Injection (BBLs)')
+    ax1.set_xlabel('Date')
+    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
+    ax1.xaxis.set_major_locator(mdates.MonthLocator())
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    ax1.tick_params(axis='x', rotation=45)
+
+    # Plot deep well data
+    ax2 = axes[1]
+    api_legend_map = {}  # Dictionary to map API numbers to legend labels
+    api_median_injection = {}  # Dictionary to store median injection for each API number over a 3-day span
+
+    for date, injection_points in deep_injection_data.items():
+        api_injection_values = {}
+        for api_number, injection in injection_points:
+            if api_number not in api_injection_values:
+                api_injection_values[api_number] = []
+            api_injection_values[api_number].append(injection)
+
+        for api_number, injection_values in api_injection_values.items():
+            median_injection = np.median(injection_values)
+            if api_number not in api_median_injection:
+                api_median_injection[api_number] = []
+            api_median_injection[api_number].append((date, median_injection))
+
+    for api_number, median_injection_points in api_median_injection.items():
+        if api_number not in api_legend_map:
+            distance = distance_data.get(api_number, 'N/A')
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
+        dates, injections = zip(*median_injection_points)
+        ax2.plot(dates, injections, marker='o', linestyle='', color=color_map_deep[api_number])
+
+    legend_handles = []
+    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
+    for legend_label, _, color in sorted_legend_items:
+        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+
+    x_min, x_max = ax2.get_xlim()
+    if x_min <= origin_date_num <= x_max:
+        ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                              f'\nOrigin Time: {origin_time}'
+                                                                              f'\nOrigin Date: {origin_date_str}'
+                                                                              f'\nLocal Magnitude: {local_magnitude}'))
+
+    ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily Injection Data - Deep Well')
+    ax2.set_ylabel('Daily Injection (BBLs)')
+    ax2.set_xlabel('Date')
+    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
+    ax2.xaxis.set_major_locator(mdates.MonthLocator())
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    ax2.tick_params(axis='x', rotation=45)
+
+    # Adjust the layout
+    plt.tight_layout()
+
+    # Save the plot to a file
+    output_file_path = os.path.join(output_directory, f"daily_injection_plot_{earthquake_info['Event ID']}.png")
+    plt.savefig(output_file_path, bbox_inches='tight')
+    plt.close()
+
+    print(f"Daily injection plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
+
+
 def create_well_histogram_per_api(cleaned_well_data_df):
     # Create a copy of the DataFrame
     df_copy = cleaned_well_data_df.copy()
@@ -521,12 +749,11 @@ def create_well_histogram_per_api(cleaned_well_data_df):
     # Define the conditions and categories
     conditions = [
         (df_copy['Injection Pressure Average PSIG'].notna() & (df_copy['Injection Pressure Average PSIG'] != 0) &
-         df_copy['Volume Injected (BBLs)'].notna() & (df_copy['Volume Injected (BBLs)'] != 0)),
-        (df_copy['Volume Injected (BBLs)'].notna() & (df_copy['Volume Injected (BBLs)'] != 0) &
+         df_copy['Volume Injected (BBLs)'].notna()),
+        (df_copy['Volume Injected (BBLs)'].notna() &
          (df_copy['Injection Pressure Average PSIG'].isna() | (df_copy['Injection Pressure Average PSIG'] == 0))),
         ((df_copy['Injection Pressure Average PSIG'].isna() | (df_copy['Injection Pressure Average PSIG'] == 0)) &
-         (df_copy['Volume Injected (BBLs)'].isna() | (df_copy['Volume Injected (BBLs)'] == 0)))
-    ]
+         df_copy['Volume Injected (BBLs)'].isna())]
     categories = ['Both Volume Injected and Pressure Provided', 'Only Volume Injected Provided',
                   'Neither Value Provided']
 
@@ -611,5 +838,7 @@ if len(sys.argv) > 1 and sys.argv[1] == '0':
     histograms = create_well_histogram_per_api(cleaned_well_data_df)
     finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
     total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
+    daily_injection_data, distance_data2 = prepare_daily_injection_data_from_df(finalized_df)
     plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR, histograms)
+    plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, OUTPUT_DIR)
     quit()
