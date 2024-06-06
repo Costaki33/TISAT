@@ -422,8 +422,10 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
     color_map_deep = {api_number: color for (api_number, _), color in zip(sorted_all_distances, deep_colors)}
 
+    fig, axes = plt.subplots(2, 1, figsize=(20, 12))  # Create a 2x1 grid for shallow and deep plots
+
     # Plot shallow well data
-    fig, ax1 = plt.subplots(figsize=(20, 12))
+    ax1 = axes[0]
     api_legend_map = {}  # Dictionary to map API numbers to legend labels
     api_median_pressure = {}  # Dictionary to store median pressure for each API number over a 3-day span
 
@@ -471,14 +473,8 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 
-    # Save shallow well plot
-    shallow_plot_filename = f'event_{earthquake_info["Event ID"]}_shallow_well_pressure_plot_range{range_km}km.png'
-    shallow_plot_filepath = os.path.join(output_directory, shallow_plot_filename)
-    fig.savefig(shallow_plot_filepath)
-    plt.close(fig)
-
     # Plot deep well data
-    fig, ax2 = plt.subplots(figsize=(20, 12))
+    ax2 = axes[1]
     api_legend_map = {}  # Reset
     api_median_pressure = {}
 
@@ -527,11 +523,11 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 
-    # Save deep well plot
-    deep_plot_filename = f'event_{earthquake_info["Event ID"]}_deep_well_pressure_plot_range{range_km}km.png'
-    deep_plot_filepath = os.path.join(output_directory, deep_plot_filename)
-    fig.savefig(deep_plot_filepath)
-    plt.close(fig)
+    # Save combined plot
+    combined_plot_filename = f'event_{earthquake_info["Event ID"]}_combined_well_pressure_plot_range{range_km}km.png'
+    combined_plot_filepath = os.path.join(output_directory, combined_plot_filename)
+    plt.savefig(combined_plot_filepath)
+    plt.close()
 
     # Combine all plots into a single figure with histograms
     num_histograms = len(histograms)
@@ -684,7 +680,8 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                     shallow_injection_data[date].append((api_number, injection))  # Include API number with injection
 
     # Save deep well injection data to a text file
-    deep_filename = os.path.join(output_directory, f'deep_well_injection_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
+    deep_filename = os.path.join(output_directory,
+                                 f'deep_well_injection_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
     with open(deep_filename, 'w') as f:
         f.write("Date\tAPI Number\tInjection (BBLs)\n")
         for date, injection_points in deep_injection_data.items():
@@ -817,7 +814,8 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     plt.tight_layout()
 
     # Save the plot to a file
-    output_file_path = os.path.join(output_directory, f"daily_injection_plot_{earthquake_info['Event ID']}_range{range_km}km.png")
+    output_file_path = os.path.join(output_directory,
+                                    f"daily_injection_plot_{earthquake_info['Event ID']}_range{range_km}km.png")
     plt.savefig(output_file_path, bbox_inches='tight')
     plt.close()
 
