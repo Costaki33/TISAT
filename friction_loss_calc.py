@@ -44,7 +44,7 @@ def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft, pip
     if matching_rows.empty:
         # This means that the API number wasn't found, instead we are going to find the row with the
         # closest packer_set to the inputted packer_depth
-        print(f"API Number not found")
+        # print(f"API Number not found")
         closest_row_index = (pipe_data_df['packer_set'] - packer_depth_ft).abs().idxmin()
         closest_row = pipe_data_df.loc[[closest_row_index]]
     else:
@@ -61,7 +61,8 @@ def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft, pip
     outer_diameter_inches = outer_diameter_row['outer_diameter']
     inner_diameter_inches = outer_diameter_row['inner_diameter']
 
-    # roh = 64.3 lbm/ft^3 = 1.03-specific gravity water
+    # roh = 64.3 lbm/ft^3 = 1.03-specific gravity water, using 66.87 based on conversion of
+    # 8.94 lb/gal to lbm/ft^3
     # Viscosity of Water at bottomhole conditons = 0.6 cp
     # print(f"Injected BBL: {injected_bbl}\nInner Diameter (in): {inner_diameter_inches}")
     newtonian_reynolds = (1.48 * injected_bbl * 64.3) / (0.1 * inner_diameter_inches)

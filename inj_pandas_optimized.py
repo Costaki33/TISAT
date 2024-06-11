@@ -63,17 +63,18 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return distance
 
 
-def convert_dates(some_earthquake_origin_date):
+def convert_dates(some_earthquake_origin_date, year_cutoff):
     """
-    Converts some earthquake origin date and one year before said earthquake origin date to datetime objects for calcs
+    Converts some earthquake origin date to one year before said earthquake origin date to datetime objects for calcs
     """
     # Convert some_earthquake_origin_date to a datetime object
+    year_to_days = 365 * year_cutoff
     some_earthquake_origin_date = datetime.datetime.strptime(some_earthquake_origin_date, '%Y-%m-%d')
 
-    # Convert some_earthquake_origin_date to a datetime object to calculate 1 year before origin date
-    one_year_after_earthquake_date = some_earthquake_origin_date + datetime.timedelta(days=365)
+    # Convert some_earthquake_origin_date to a datetime object to calculate cutoff before earthquake
+    cutoff_before_earthquake_date = some_earthquake_origin_date - datetime.timedelta(days=year_to_days)
 
-    return some_earthquake_origin_date, one_year_after_earthquake_date
+    return some_earthquake_origin_date, cutoff_before_earthquake_date
 
 
 def classify_well_type(well_lat, well_lon, well_depth, strawn_formation_data):
@@ -109,19 +110,22 @@ def classify_well_type(well_lat, well_lon, well_depth, strawn_formation_data):
         return 0  # Shallow well type
 
 
-def is_within_one_year(injection_date, one_year_after_earthquake_date):
+def is_within_cutoff(injection_date, earthquake_date, cutoff_before_earthquake):
     """
-    Checks to see if a given well injection date falls within 1 year after to the earthquake occurring.
-    We want to do this to see if the injection data is valid in creating a timeline;
-    We don't want to get a timeline after the earthquake occurred, we want prior
-    If the injection date falls within the 1 year range, great! Return True for further calculations
-    If the injection date doesn't fall within the 1 year range, Return False and write to file
-    """
-    if injection_date > one_year_after_earthquake_date:
-        return False
+    Checks to see if a given well injection date falls within a given cutoff prior to the earthquake occurring.
 
-    if injection_date <= one_year_after_earthquake_date:
+    Parameters:
+    injection_date (datetime): The date of the well injection.
+    earthquake_date (datetime): The date of the earthquake.
+    cutoff_before_earthquake (int): The year cutoff investigating prior to the earthquake
+
+    Returns:
+    bool: True if the injection date falls within the one-year range before the earthquake date, False otherwise.
+    """
+    if cutoff_before_earthquake <= injection_date <= earthquake_date:
         return True
+    else:
+        return False
 
 
 def hsl_to_rgb(h, s, l):
@@ -183,7 +187,7 @@ def generate_gradient_colors(num_colors, start_color, lightness_adjustment):
 
 
 def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some_earthquake_origin_date,
-                     strawn_formation_data):
+                     strawn_formation_data, year_cutoff):
     """
     Function checks the injection data for the closest wells to a given earthquake to see if the injection data
     is 'valid', IE. it falls between the origin date of the injection dataset and up to a year post-earthquake,
@@ -200,14 +204,14 @@ def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some
     """
     api_numbers_to_remove = []
 
-    some_earthquake_origin_date, one_year_after_earthquake_date = convert_dates(some_earthquake_origin_date)
+    some_earthquake_origin_date, cutoff_before_earthquake_date = convert_dates(some_earthquake_origin_date, year_cutoff)
 
     # Group by 'API Number' and find the earliest 'Date of Injection' for each group
     earliest_injection_dates = closest_wells_data_df.groupby('API Number')['Date of Injection'].min()
 
     # Find all the wells who don't have a valid injection and remove from dataframe
     for api_number, injection_date in earliest_injection_dates.items():
-        if not is_within_one_year(injection_date, one_year_after_earthquake_date):
+        if not is_within_cutoff(injection_date, some_earthquake_origin_date, cutoff_before_earthquake_date):
             print(f"Earliest injection date for well #{api_number}, is not within 1 year of the earthquake date."
                   f" Earliest date was: {injection_date}.\nWill omit from computation.\n"
                   f"------------------------------------")
@@ -434,7 +438,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     # Plot shallow well data
     ax1 = axes[0]
     api_legend_map = {}  # Dictionary to map API numbers to legend labels
-    api_median_pressure = {}  # Dictionary to store median pressure for each API number over a 3-day span
+    api_median_pressure_shallow = {}  # Dictionary to store median pressure for each API number over a 3-day span
 
     for date, pressure_points in shallow_pressure_data.items():
         api_pressure_values = {}
@@ -445,26 +449,16 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
         for api_number, pressure_values in api_pressure_values.items():
             median_pressure = np.median(pressure_values)
-            if api_number not in api_median_pressure:
-                api_median_pressure[api_number] = []
-            api_median_pressure[api_number].append((date, median_pressure))
+            if api_number not in api_median_pressure_shallow:
+                api_median_pressure_shallow[api_number] = []
+            api_median_pressure_shallow[api_number].append((date, median_pressure))
 
-    for api_number, median_pressure_points in api_median_pressure.items():
+    for api_number, median_pressure_points in api_median_pressure_shallow.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, pressures = zip(*median_pressure_points)
-        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
-
-        # Separate the data points for the category 'Only Volume Injected Provided'
-        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
-                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
-        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
-        category_pressures = category_data['Injection Pressure Average PSIG']
-
-        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
-        ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
-                 markeredgecolor='black', markersize=2.2)
+        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -493,7 +487,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     # Plot deep well data
     ax2 = axes[1]
     api_legend_map = {}  # Reset
-    api_median_pressure = {}
+    api_median_pressure_deep = {}
 
     for date, pressure_points in deep_pressure_data.items():
         api_pressure_values = {}
@@ -504,127 +498,17 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
         for api_number, pressure_values in api_pressure_values.items():
             median_pressure = np.median(pressure_values)
-            if api_number not in api_median_pressure:
-                api_median_pressure[api_number] = []
-            api_median_pressure[api_number].append((date, median_pressure))
+            if api_number not in api_median_pressure_deep:
+                api_median_pressure_deep[api_number] = []
+            api_median_pressure_deep[api_number].append((date, median_pressure))
 
-    for api_number, median_pressure_points in api_median_pressure.items():
+    for api_number, median_pressure_points in api_median_pressure_deep.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
         dates, pressures = zip(*median_pressure_points)
         ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
 
-        # Separate the data points for the category 'Only Volume Injected Provided'
-        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
-                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
-        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
-        category_pressures = category_data['Injection Pressure Average PSIG']
-
-        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
-        ax2.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
-                 markeredgecolor='black', markersize=2.2)
-
-    legend_handles = []
-    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
-    for legend_label, _, color in sorted_legend_items:
-        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
-
-    x_min, x_max = ax2.get_xlim()
-    if x_min <= origin_date_num <= x_max:
-        ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                              f'\nOrigin Time: {origin_time}'
-                                                                              f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'
-                                                                              f'\nRange {range_km} km'))
-
-    ax2.set_title(f'event_{earthquake_info["Event ID"]} Bottomhole Pressure Data - Deep Well ({range_km} KM Range)')
-    ax2.set_xlabel('Date')
-    ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
-    ax2.grid(True)
-    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
-    ax2.tick_params(axis='x', rotation=45)
-
-    # Set major locator and formatter to display ticks for each month
-    ax2.xaxis.set_major_locator(mdates.MonthLocator())
-    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-
-    plt.subplots_adjust(hspace=0.5)
-
-    # Save combined plot
-    combined_plot_filename = f'event_{earthquake_info["Event ID"]}_combined_bottomhole_pressure_plot_range{range_km}km.png'
-    combined_plot_filepath = os.path.join(output_directory, combined_plot_filename)
-    plt.savefig(combined_plot_filepath)
-    plt.close()
-
-    # Combine all plots into a single figure with histograms
-    num_histograms = len(histograms)
-    num_rows = 2 + num_histograms
-    fig, axes = plt.subplots(num_rows, 1, figsize=(20, 8 * num_rows))  # Increased figure size for combined plot
-
-    # Re-plot shallow well data in the combined figure
-    ax1 = axes[0]
-    for api_number, median_pressure_points in api_median_pressure.items():
-        if api_number not in api_legend_map:
-            distance = distance_data.get(api_number, 'N/A')
-            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
-        dates, pressures = zip(*median_pressure_points)
-        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
-
-        # Separate the data points for the category 'Only Volume Injected Provided'
-        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
-                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
-        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
-        category_pressures = category_data['Injection Pressure Average PSIG']
-
-        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
-        ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
-                 markeredgecolor='black', markersize=2.2)
-
-    legend_handles = []
-    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
-    for legend_label, _, color in sorted_legend_items:
-        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
-
-    x_min, x_max = ax1.get_xlim()
-    if x_min <= origin_date_num <= x_max:
-        ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                              f'\nOrigin Time: {origin_time}'
-                                                                              f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'
-                                                                              f'\nRange: {range_km} km'))
-
-    ax1.set_title(f'event_{earthquake_info["Event ID"]} Bottomhole Pressure Data - Shallow Well ({range_km} KM Range)')
-    ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
-    ax1.grid(True)
-    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
-    ax1.tick_params(axis='x', rotation=45)
-
-    # Set major locator and formatter to display ticks for each month
-    ax1.xaxis.set_major_locator(mdates.MonthLocator())
-    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-
-    # Re-plot deep well data in the combined figure
-    ax2 = axes[1]
-    for api_number, median_pressure_points in api_median_pressure.items():
-        if api_number not in api_legend_map:
-            distance = distance_data.get(api_number, 'N/A')
-            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
-        dates, pressures = zip(*median_pressure_points)
-        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
-
-        # Separate the data points for the category 'Only Volume Injected Provided'
-        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
-                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
-        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
-        category_pressures = category_data['Injection Pressure Average PSIG']
-
-        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
-        ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
-                 markeredgecolor='black', markersize=2.2)
-
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
     for legend_label, _, color in sorted_legend_items:
@@ -650,21 +534,11 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 
-    # Plot histograms
-    for i, (api_number, histogram) in enumerate(histograms.items()):
-        ax_hist = axes[2 + i]
-        ax_hist.imshow(histogram.canvas.buffer_rgba())
-        ax_hist.axis('off')
-        ax_hist.set_title(f'Histogram for API {api_number} ({range_km} KM Range)')
-
-    plt.subplots_adjust(hspace=0.5)
-
-    plot_filename = f'event_{earthquake_info["Event ID"]}_bottomhole_pressure_plot_with_hist_range{range_km}km.png'
-    plot_filepath = os.path.join(output_directory, plot_filename)
-    plt.savefig(plot_filepath)
-    plt.close()
-
-    print(f"Pressure plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
+    # Save the plot as an image file
+    output_filename = os.path.join(output_directory,
+                                   f'event_{earthquake_info["Event ID"]}_bottomhole_pressure_range{range_km}km.png')
+    plt.tight_layout()
+    plt.savefig(output_filename, dpi=300)
 
 
 def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, output_directory, range_km):
@@ -913,7 +787,7 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
     # Plot shallow well data
     ax1 = axes[0]
     api_legend_map = {}  # Dictionary to map API numbers to legend labels
-    api_median_deltaP = {}  # Dictionary to store median deltaP for each API number over a 3-day span
+    api_median_deltaP_shallow = {}  # Dictionary to store median deltaP for each API number over a 3-day span
 
     for date, deltaP_points in shallow_deltaP_data.items():
         api_deltaP_values = {}
@@ -924,16 +798,19 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
 
         for api_number, deltaP_values in api_deltaP_values.items():
             median_deltaP = np.median(deltaP_values)
-            if api_number not in api_median_deltaP:
-                api_median_deltaP[api_number] = []
-            api_median_deltaP[api_number].append((date, median_deltaP))
+            if api_number not in api_median_deltaP_shallow:
+                api_median_deltaP_shallow[api_number] = []
+            api_median_deltaP_shallow[api_number].append((date, median_deltaP))
 
-    for api_number, median_deltaP_points in api_median_deltaP.items():
+    all_shallow_median_deltaPs = []
+
+    for api_number, median_deltaP_points in api_median_deltaP_shallow.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, deltaPs = zip(*median_deltaP_points)
         ax1.plot(dates, deltaPs, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
+        all_shallow_median_deltaPs.extend(deltaPs)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -959,10 +836,15 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax1.tick_params(axis='x', rotation=45)
 
+    # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
+    if all_shallow_median_deltaPs:
+        shallow_min, shallow_max = np.percentile(all_shallow_median_deltaPs, [5, 95])
+        ax1.set_ylim(shallow_min, shallow_max)
+
     # Plot deep well data
     ax2 = axes[1]
-    api_legend_map = {}  # Dictionary to map API numbers to legend labels
-    api_median_deltaP = {}  # Dictionary to store median deltaP for each API number over a 3-day span
+    api_legend_map = {}  # Reset
+    api_median_deltaP_deep = {}  # Dictionary to store median deltaP for each API number over a 3-day span
 
     for date, deltaP_points in deep_deltaP_data.items():
         api_deltaP_values = {}
@@ -973,16 +855,19 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
 
         for api_number, deltaP_values in api_deltaP_values.items():
             median_deltaP = np.median(deltaP_values)
-            if api_number not in api_median_deltaP:
-                api_median_deltaP[api_number] = []
-            api_median_deltaP[api_number].append((date, median_deltaP))
+            if api_number not in api_median_deltaP_deep:
+                api_median_deltaP_deep[api_number] = []
+            api_median_deltaP_deep[api_number].append((date, median_deltaP))
 
-    for api_number, median_deltaP_points in api_median_deltaP.items():
+    all_deep_median_deltaPs = []
+
+    for api_number, median_deltaP_points in api_median_deltaP_deep.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
         dates, deltaPs = zip(*median_deltaP_points)
         ax2.plot(dates, deltaPs, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+        all_deep_median_deltaPs.extend(deltaPs)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -1005,6 +890,11 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax2.tick_params(axis='x', rotation=45)
 
+    # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
+    if all_deep_median_deltaPs:
+        deep_min, deep_max = np.percentile(all_deep_median_deltaPs, [5, 95])
+        ax2.set_ylim(deep_min, deep_max)
+
     # Adjust the layout
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.3)
@@ -1026,13 +916,13 @@ def create_well_histogram_per_api(cleaned_well_data_df, range_km, output_directo
     # Define the conditions and categories
     conditions = [
         (cleaned_well_data_df['Injection Pressure Average PSIG'].notna() & (
-                    cleaned_well_data_df['Injection Pressure Average PSIG'] != 0) &
+                cleaned_well_data_df['Injection Pressure Average PSIG'] != 0) &
          cleaned_well_data_df['Volume Injected (BBLs)'].notna()),
         (cleaned_well_data_df['Volume Injected (BBLs)'].notna() &
          (cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (
-                     cleaned_well_data_df['Injection Pressure Average PSIG'] == 0))),
+                 cleaned_well_data_df['Injection Pressure Average PSIG'] == 0))),
         ((cleaned_well_data_df['Injection Pressure Average PSIG'].isna() | (
-                    cleaned_well_data_df['Injection Pressure Average PSIG'] == 0)) &
+                cleaned_well_data_df['Injection Pressure Average PSIG'] == 0)) &
          cleaned_well_data_df['Volume Injected (BBLs)'].isna())]
     categories = ['Both Volume Injected and Pressure Provided', 'Only Volume Injected Provided',
                   'Neither Value Provided']
@@ -1110,13 +1000,15 @@ if len(sys.argv) > 1:
 
         # User-provided values for range_km
         range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
+        year_cutoff = int(input("Enter the year cutoff you would like to analyze prior to "
+                                  "the earthquake: (E.g. 5 yrs): "))
         closest_well_data_df = closest_wells_to_earthquake(center_lat=earthquake_latitude,
                                                            center_lon=earthquake_longitude,
                                                            radius_km=range_km)
 
         strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
         cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
-                                                earthquake_origin_date, strawn_formation_data)
+                                                earthquake_origin_date, strawn_formation_data, year_cutoff)
         histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, OUTPUT_DIR)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 
@@ -1151,14 +1043,16 @@ if len(sys.argv) > 1:
 
         # User-provided values for range_km
         range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
+        year_cutoff = int(input("Enter the year cutoff you would like to analyze prior to "
+                                "the earthquake: (E.g. 5 yrs): "))
         closest_well_data_df = closest_wells_to_earthquake(center_lat=earthquake_latitude,
                                                            center_lon=earthquake_longitude,
                                                            radius_km=range_km)
 
         strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
         cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
-                                                earthquake_origin_date, strawn_formation_data)
-        histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, output_dir)
+                                                earthquake_origin_date, strawn_formation_data, year_cutoff)
+        histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, OUTPUT_DIR)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 
         total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)

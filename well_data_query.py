@@ -31,9 +31,9 @@ def closest_wells_to_earthquake(center_lat, center_lon, radius_km):
         "BeginMonth": "1",
         "EndYear": "2023",
         "EndMonth": "12",
-        "aoiCircleCenterLatDD": center_lat,
-        "aoiCircleCenterLonDD": center_lon,
-        "aoiCircleRadiusKm": radius_km
+        "aoiCircleCenterLatDD": str(center_lat),
+        "aoiCircleCenterLonDD": str(center_lon),
+        "aoiCircleRadiusKm": str(radius_km)
     }
 
     headers = {
