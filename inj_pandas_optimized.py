@@ -453,12 +453,15 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
                 api_median_pressure_shallow[api_number] = []
             api_median_pressure_shallow[api_number].append((date, median_pressure))
 
+    all_shallow_median_bps = []
+
     for api_number, median_pressure_points in api_median_pressure_shallow.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, pressures = zip(*median_pressure_points)
         ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
+        all_shallow_median_bps.extend(pressures)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -479,6 +482,11 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax1.grid(True)
     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
     ax1.tick_params(axis='x', rotation=45)
+
+    # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
+    if all_shallow_median_bps:
+        shallow_min, shallow_max = np.percentile(all_shallow_median_bps, [5, 95])
+        ax1.set_ylim(shallow_min, shallow_max)
 
     # Set major locator and formatter to display ticks for each month
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
@@ -502,12 +510,15 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
                 api_median_pressure_deep[api_number] = []
             api_median_pressure_deep[api_number].append((date, median_pressure))
 
+    all_deep_median_bps = []
+
     for api_number, median_pressure_points in api_median_pressure_deep.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
         dates, pressures = zip(*median_pressure_points)
         ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+        all_deep_median_bps.extend(pressures)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -529,6 +540,11 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax2.grid(True)
     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
     ax2.tick_params(axis='x', rotation=45)
+
+    # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
+    if all_deep_median_bps:
+        deep_min, deep_max = np.percentile(all_deep_median_bps, [5, 95])
+        ax2.set_ylim(deep_min, deep_max)
 
     # Set major locator and formatter to display ticks for each month
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
@@ -657,12 +673,15 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                 api_median_injection[api_number] = []
             api_median_injection[api_number].append((date, median_injection))
 
+    all_shallow_median_injections = []
+
     for api_number, median_injection_points in api_median_injection.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, injections = zip(*median_injection_points)
         ax1.plot(dates, injections, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
+        all_shallow_median_injections.extend(injections)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
@@ -686,6 +705,11 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax1.tick_params(axis='x', rotation=45)
 
+    # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
+    if all_shallow_median_injections:
+        shallow_min, shallow_max = np.percentile(all_shallow_median_injections, [5, 95])
+        ax1.set_ylim(shallow_min, shallow_max)
+
     # Plot deep well data
     ax2 = axes[1]
     api_legend_map = {}  # Dictionary to map API numbers to legend labels
@@ -703,6 +727,8 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
             if api_number not in api_median_injection:
                 api_median_injection[api_number] = []
             api_median_injection[api_number].append((date, median_injection))
+
+    all_deep_median_injections = []
 
     for api_number, median_injection_points in api_median_injection.items():
         if api_number not in api_legend_map:
@@ -732,6 +758,11 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax2.tick_params(axis='x', rotation=45)
+
+    # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
+    if all_deep_median_injections:
+        deep_min, deep_max = np.percentile(all_deep_median_injections, [5, 95])
+        ax2.set_ylim(deep_min, deep_max)
 
     # Adjust the layout
     plt.tight_layout()
@@ -826,7 +857,8 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {earthquake_info["Origin Time"]}'
                                                                               f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'))
+                                                                              f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'
+                                                                              f'\nRange: {range_km} km'))
 
     ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Shallow Well ({range_km} KM Range)')
     ax1.set_ylabel('Daily Tubing Friction Loss (PSI)')
@@ -880,7 +912,8 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {earthquake_info["Origin Time"]}'
                                                                               f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'))
+                                                                              f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'
+                                                                              f'\nRange: {range_km} km'))
 
     ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Deep Well ({range_km} KM Range)')
     ax2.set_ylabel('Daily Tubing Friction Loss (PSI)')
@@ -1000,7 +1033,7 @@ if len(sys.argv) > 1:
 
         # User-provided values for range_km
         range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
-        year_cutoff = int(input("Enter the year cutoff you would like to analyze prior to "
+        year_cutoff = int(input("\nEnter the year cutoff you would like to analyze prior to "
                                   "the earthquake: (E.g. 5 yrs): "))
         closest_well_data_df = closest_wells_to_earthquake(center_lat=earthquake_latitude,
                                                            center_lon=earthquake_longitude,
@@ -1043,7 +1076,7 @@ if len(sys.argv) > 1:
 
         # User-provided values for range_km
         range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
-        year_cutoff = int(input("Enter the year cutoff you would like to analyze prior to "
+        year_cutoff = int(input("\nEnter the year cutoff you would like to analyze prior to "
                                 "the earthquake: (E.g. 5 yrs): "))
         closest_well_data_df = closest_wells_to_earthquake(center_lat=earthquake_latitude,
                                                            center_lon=earthquake_longitude,

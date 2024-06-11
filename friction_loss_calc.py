@@ -21,6 +21,7 @@ tubing_dim_df = pd.DataFrame(tubing_dimensions, columns=['outer_diameter', 'inne
 pipe_data_df = pd.read_csv(tubing_information)
 pipe_data_df['modified_dt'] = pd.to_datetime(pipe_data_df['modified_dt'])
 
+
 def parse_tubing_size(size_str):
     # Split the string into parts
     parts = size_str.split()
@@ -78,11 +79,11 @@ def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft, pip
 
     # print(f"Friction Factor: {friction_factor}")
     # Fanning Equation - Frictional Pressure Drop Equation
-    fluid_velocity_ft_s = (4 * injected_bbl * 5.615 * (1 / 86400)) / (math.pi * (inner_diameter_inches / 12)**2)  # ft/s
-    deltaP = ((2 * friction_factor * 64.3 * (fluid_velocity_ft_s**2) * packer_depth_ft)
-              / (32.17 * (inner_diameter_inches / 12))) * (1/144) # PSI
+    fluid_velocity_ft_s = (4 * injected_bbl * 5.615 * (1 / 86400)) / (
+                math.pi * (inner_diameter_inches / 12) ** 2)  # ft/s
+    deltaP = ((2 * friction_factor * 64.3 * (fluid_velocity_ft_s ** 2) * packer_depth_ft)
+              / (32.17 * (inner_diameter_inches / 12))) * (1 / 144)  # PSI
     return deltaP
-
 
 # API NUM: 32938683
 # Injected BBL: 4372.0
