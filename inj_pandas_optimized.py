@@ -736,6 +736,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
         dates, injections = zip(*median_injection_points)
         ax2.plot(dates, injections, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+        all_deep_median_injections.extend(injections)
 
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
