@@ -212,7 +212,7 @@ def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some
     # Find all the wells who don't have a valid injection and remove from dataframe
     for api_number, injection_date in earliest_injection_dates.items():
         if not is_within_cutoff(injection_date, some_earthquake_origin_date, cutoff_before_earthquake_date):
-            print(f"Earliest injection date for well #{api_number}, is not within 1 year of the earthquake date."
+            print(f"Earliest injection date for well #{api_number}, is not within cutoff of the earthquake date."
                   f" Earliest date was: {injection_date}.\nWill omit from computation.\n"
                   f"------------------------------------")
             api_numbers_to_remove.append(api_number)
