@@ -460,7 +460,20 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
         dates, pressures = zip(*median_pressure_points)
+
+        # Plot the shallow well data points
         ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
+
+        # Separate the data points for the category 'Only Volume Injected Provided'
+        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
+                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
+        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
+        category_pressures = category_data['Bottomhole Pressure']
+
+        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
+        ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
+                 markeredgecolor='black', markeredgewidth=0.5, markersize=2.5)
+
         all_shallow_median_bps.extend(pressures)
 
     legend_handles = []
@@ -517,7 +530,18 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
         dates, pressures = zip(*median_pressure_points)
+
+        # Plot the deep well data points
         ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+
+        # Separate the data points for the category 'Only Volume Injected Provided'
+        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
+                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
+        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
+        category_pressures = category_data['Bottomhole Pressure']
+        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
+        ax2.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
+                 markeredgecolor='black', markeredgewidth=0.5, markersize=2.5)
         all_deep_median_bps.extend(pressures)
 
     legend_handles = []
