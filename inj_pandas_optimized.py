@@ -493,13 +493,30 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax1.set_title(f'event_{earthquake_info["Event ID"]} Bottomhole Pressure Data - Shallow Well ({range_km} KM Range)')
     ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
     ax1.grid(True)
-    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
+    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
     ax1.tick_params(axis='x', rotation=45)
 
     # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
     if all_shallow_median_bps:
-        shallow_min, shallow_max = np.percentile(all_shallow_median_bps, [5, 95])
-        ax1.set_ylim(shallow_min, shallow_max)
+        # print(f"shallow median bps: {all_shallow_median_bps}")
+
+        # Ensure all values in the list are finite numbers
+        valid_bps = [bp for bp in all_shallow_median_bps if np.isfinite(bp)]
+
+        if not valid_bps:
+            print("No valid data points found in all_shallow_median_bps.")
+        else:
+            # Calculate percentiles only with valid data points
+            shallow_min, shallow_max = np.percentile(valid_bps, [5, 95])
+            # print(f"shallow_min: {shallow_min}, shallow_max: {shallow_max}")
+
+            # Validate the calculated percentiles
+            if not np.isfinite(shallow_min) or not np.isfinite(shallow_max):
+                print(f"Invalid axis limits: shallow_min={shallow_min}, shallow_max={shallow_max}")
+            else:
+                ax1.set_ylim(shallow_min, shallow_max)
+    else:
+        print("No data points available to calculate shallow well pressure limits.")
 
     # Set major locator and formatter to display ticks for each month
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
@@ -562,7 +579,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     ax2.set_xlabel('Date')
     ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
     ax2.grid(True)
-    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
+    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
     ax2.tick_params(axis='x', rotation=45)
 
     # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
@@ -579,6 +596,8 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
                                    f'event_{earthquake_info["Event ID"]}_bottomhole_pressure_range{range_km}km.png')
     plt.tight_layout()
     plt.savefig(output_filename, dpi=300)
+    print(f"Daily bottomhole plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
+
 
 
 def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, output_directory, range_km):
@@ -724,7 +743,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily Injection Data - Shallow Well ({range_km} KM Range)')
     ax1.set_ylabel('Daily Injection (BBLs)')
     ax1.set_xlabel('Date')
-    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
+    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax1.tick_params(axis='x', rotation=45)
@@ -779,7 +798,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily Injection Data - Deep Well ({range_km} KM Range)')
     ax2.set_ylabel('Daily Injection (BBLs)')
     ax2.set_xlabel('Date')
-    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
+    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax2.tick_params(axis='x', rotation=45)
@@ -888,7 +907,7 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
     ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Shallow Well ({range_km} KM Range)')
     ax1.set_ylabel('Daily Tubing Friction Loss (PSI)')
     ax1.set_xlabel('Date')
-    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
+    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax1.tick_params(axis='x', rotation=45)
@@ -943,7 +962,7 @@ def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, outp
     ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Deep Well ({range_km} KM Range)')
     ax2.set_ylabel('Daily Tubing Friction Loss (PSI)')
     ax2.set_xlabel('Date')
-    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium')
+    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax2.tick_params(axis='x', rotation=45)
