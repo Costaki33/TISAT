@@ -1,3 +1,4 @@
+import math
 import os
 import sys
 import csv
@@ -14,6 +15,7 @@ from matplotlib.lines import Line2D
 from friction_loss_calc import friction_loss
 from math import radians, sin, cos, sqrt, atan2
 from pandas.errors import SettingWithCopyWarning
+from subplot_dirs import create_indiv_subplot_dirs
 from well_data_query import closest_wells_to_earthquake
 
 # GLOBAL VARIABLES AND FILE PATHS
@@ -46,20 +48,24 @@ def get_earthquake_info_from_csv(csv_string):
 def haversine_distance(lat1, lon1, lat2, lon2):
     # Earth radius in kilometers
     R = 6371.0
-
+    # print(f"Earthquake Center: {lat1}, {lon2}\nWell: {lat2}, {lon2}")
     # Convert latitude and longitude from degrees to radians
-    lat1_rad, lon1_rad, lat2_rad, lon2_rad = map(radians, [lat1, lon1, lat2, lon2])
-
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+    # print(f"Earthquake Center Rad: {lat1_rad}, {lon2_rad}\nWell Rad: {lat2_rad}, {lon2_rad}")
     # Calculate differences in coordinates
     dlon = lon2_rad - lon1_rad
     dlat = lat2_rad - lat1_rad
 
     # Haversine formula to calculate distance
-    a = sin(dlat / 2) ** 2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2) ** 2
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     # Calculate the distance
     distance = R * c
+    # print(f"Distance: {distance}\n")
     return distance
 
 
@@ -122,6 +128,7 @@ def is_within_cutoff(injection_date, earthquake_date, cutoff_before_earthquake):
     Returns:
     bool: True if the injection date falls within the one-year range before the earthquake date, False otherwise.
     """
+    # print(f"Injection Date: {injection_date}")
     if cutoff_before_earthquake <= injection_date <= earthquake_date:
         return True
     else:
@@ -210,8 +217,12 @@ def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some
     earliest_injection_dates = closest_wells_data_df.groupby('API Number')['Date of Injection'].min()
 
     # Find all the wells who don't have a valid injection and remove from dataframe
+    current_date = datetime.datetime.now()
+    current_date_difference = current_date - some_earthquake_origin_date
+    # print(f"Earthquake Origin Date: {some_earthquake_origin_date}\nCutoff: {cutoff_before_earthquake_date}"
+    #       f"\nDate delta: {current_date_difference}")
     for api_number, injection_date in earliest_injection_dates.items():
-        if not is_within_cutoff(injection_date, some_earthquake_origin_date, cutoff_before_earthquake_date):
+        if not is_within_cutoff(injection_date, (some_earthquake_origin_date + current_date_difference), cutoff_before_earthquake_date):
             print(f"Earliest injection date for well #{api_number}, is not within cutoff of the earthquake date."
                   f" Earliest date was: {injection_date}.\nWill omit from computation.\n"
                   f"------------------------------------")
@@ -1086,6 +1097,7 @@ if len(sys.argv) > 1:
         strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
         cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                                 earthquake_origin_date, strawn_formation_data, year_cutoff)
+        # print(cleaned_well_data_df.tail(20))
         histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, OUTPUT_DIR)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 
@@ -1129,6 +1141,7 @@ if len(sys.argv) > 1:
         strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
         cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                                 earthquake_origin_date, strawn_formation_data, year_cutoff)
+        # print(cleaned_well_data_df.tail(20))
         histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, output_dir)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 
@@ -1138,6 +1151,7 @@ if len(sys.argv) > 1:
         plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_dir, histograms, range_km)
         plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, output_dir, range_km)
         plot_daily_deltaP(finalized_df, distance_data, earthquake_info, output_dir, range_km)
+        create_indiv_subplot_dirs(base_dir=output_dir)
 
         quit()
     else:
