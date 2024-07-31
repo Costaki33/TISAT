@@ -4,7 +4,6 @@ import os
 def create_indiv_subplot_dirs(base_dir: str):
     # Expand user tilde to full path
     base_directory = os.path.expanduser(base_dir)
-    print(f"Base Directory: {base_directory}")
     # Define the subdirectories to be created
     subfolders = ['deep_individual_plots', 'shallow_individual_plots']
 

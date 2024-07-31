@@ -13,7 +13,7 @@ import matplotlib.dates as mdates
 from collections import defaultdict
 from matplotlib.lines import Line2D
 from friction_loss_calc import friction_loss
-from math import radians, sin, cos, sqrt, atan2
+from individual_plots import gather_well_data
 from pandas.errors import SettingWithCopyWarning
 from subplot_dirs import create_indiv_subplot_dirs
 from well_data_query import closest_wells_to_earthquake
@@ -1152,6 +1152,7 @@ if len(sys.argv) > 1:
         plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, output_dir, range_km)
         plot_daily_deltaP(finalized_df, distance_data, earthquake_info, output_dir, range_km)
         create_indiv_subplot_dirs(base_dir=output_dir)
+        gather_well_data(base_path=output_dir)
 
         quit()
     else:
