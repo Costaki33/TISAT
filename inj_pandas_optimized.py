@@ -1107,6 +1107,8 @@ if len(sys.argv) > 1:
         plot_total_pressure(total_pressure_data, distance_data, earthquake_info, OUTPUT_DIR, histograms, range_km)
         plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, OUTPUT_DIR, range_km)
         plot_daily_deltaP(finalized_df, distance_data, earthquake_info, OUTPUT_DIR, range_km)
+        create_indiv_subplot_dirs(base_dir=OUTPUT_DIR)
+        gather_well_data(base_path=OUTPUT_DIR)
 
         quit()
     elif sys.argv[1] == '1':
