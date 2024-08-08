@@ -29,8 +29,8 @@ def closest_wells_to_earthquake(center_lat, center_lon, radius_km):
         "Format": "excel",
         "BeginYear": "2016",
         "BeginMonth": "1",
-        "EndYear": "2023",
-        "EndMonth": "12",
+        "EndYear": "2024",
+        "EndMonth": "08",
         "aoiCircleCenterLatDD": center_lat,
         "aoiCircleCenterLonDD": center_lon,
         "aoiCircleRadiusKm": radius_km

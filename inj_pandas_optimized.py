@@ -1097,7 +1097,6 @@ if len(sys.argv) > 1:
         strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
         cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                                 earthquake_origin_date, strawn_formation_data, year_cutoff)
-        # print(cleaned_well_data_df.tail(20))
         histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, OUTPUT_DIR)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 
@@ -1143,6 +1142,8 @@ if len(sys.argv) > 1:
         strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
         cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                                 earthquake_origin_date, strawn_formation_data, year_cutoff)
+        cleaned_well_data_df.to_csv(f'{output_dir}/cleaned_well_data.csv', index=False)
+
         # print(cleaned_well_data_df.tail(20))
         histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, output_dir)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
