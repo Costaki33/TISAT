@@ -277,7 +277,8 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
             if volume_injected == 0:
                 total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure
             elif volume_injected > 0:
-                deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft, b3=None)  # in psi
+                deltaP = friction_loss(api_number, injection_date, volume_injected, well_total_depth_ft,
+                                       b3=None)  # in psi
                 total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure - deltaP
 
         else:
@@ -286,7 +287,7 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
                 total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure
             elif volume_injected > 0:
                 deltaP = friction_loss(api_number, injection_date, volume_injected,
-                                       depth_of_tubing_packer)  # in psi
+                                       depth_of_tubing_packer, b3=None)  # in psi
                 total_bottomhole_pressure = float(injection_pressure_avg_psi) + hydrostatic_pressure - deltaP
 
         # Append the total_bottomhole_pressure value to the DataFrame as a new column
@@ -565,6 +566,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
                                              (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
         category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
         category_pressures = category_data['Bottomhole Pressure']
+
         # Plot the data points for the category 'Only Volume Injected Provided' with an outline
         ax2.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
                  markeredgecolor='black', markeredgewidth=0.5, markersize=2.5)
@@ -593,8 +595,21 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
     # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
     if all_deep_median_bps:
-        deep_min, deep_max = np.percentile(all_deep_median_bps, [5, 95])
-        ax2.set_ylim(deep_min, deep_max)
+        # Convert to a numpy array if it's not already
+        all_deep_median_bps = np.array(all_deep_median_bps)
+
+        # Remove NaN values
+        filtered_data = all_deep_median_bps[~np.isnan(all_deep_median_bps)]
+
+        # Check if there is any data left after filtering
+        if filtered_data.size > 0:
+            # Calculate the 5th and 95th percentiles
+            deep_min, deep_max = np.percentile(filtered_data, [5, 95])
+            ax2.set_ylim(deep_min, deep_max)
+        else:
+            print("Warning: No valid data available after removing NaNs. Cannot set axis limits.")
+    else:
+        print("No deep median bps data available.")
 
     # Set major locator and formatter to display ticks for each month
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
@@ -767,7 +782,6 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     api_median_injection = {}  # Dictionary to store median injection for each API number over a 3-day span
 
     for date, injection_points in deep_injection_data.items():
-        print(f"Type for dates read to plot: {type(date)}\n{date}")
         api_injection_values = {}
         for api_number, injection in injection_points:
             if api_number not in api_injection_values:
@@ -828,170 +842,6 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     plt.close()
 
     print(f"Daily injection plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
-
-
-# def plot_daily_deltaP(cleaned_well_data_df, distance_data, earthquake_info, output_directory, range_km):
-#     # Ensure the 'Date of Injection' column is in datetime format
-#     cleaned_well_data_df['Date of Injection'] = pd.to_datetime(cleaned_well_data_df['Date of Injection'])
-#
-#     # Create separate dictionaries for shallow and deep wells
-#     shallow_deltaP_data = defaultdict(list)
-#     deep_deltaP_data = defaultdict(list)
-#
-#     for index, row in cleaned_well_data_df.iterrows():
-#         date = row['Date of Injection']
-#         api_number = row['API Number']
-#         deltaP = row['deltaP']
-#         well_type = row['Well Type']
-#
-#         if well_type == 1:  # Deep well
-#             deep_deltaP_data[date].append((api_number, deltaP))
-#         elif well_type == 0:  # Shallow well
-#             shallow_deltaP_data[date].append((api_number, deltaP))
-#
-#     # Combine all API numbers from shallow and deep data
-#     all_api_numbers = list(set(cleaned_well_data_df['API Number'].unique()))
-#     all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
-#     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
-#
-#     # Generate gradient colors for all API numbers
-#     slightly_darker_shallow = adjust_lightness("#FFDAB9", 0.55)  # Light orange color
-#     slightly_darker_deep = adjust_lightness("#E6E6FA", 0.65)  # Light purple color
-#     shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow,
-#                                               lightness_adjustment=1)
-#     deep_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_deep, lightness_adjustment=.95)
-#
-#     # Create a color map for all API numbers
-#     color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
-#     color_map_deep = {api_number: color for (api_number, _), color in zip(sorted_all_distances, deep_colors)}
-#
-#     # Create subplots
-#     fig, axes = plt.subplots(2, 1, figsize=(20, 12))
-#
-#     # Plot shallow well data
-#     ax1 = axes[0]
-#     api_legend_map = {}  # Dictionary to map API numbers to legend labels
-#     api_median_deltaP_shallow = {}  # Dictionary to store median deltaP for each API number over a 3-day span
-#
-#     for date, deltaP_points in shallow_deltaP_data.items():
-#         api_deltaP_values = {}
-#         for api_number, deltaP in deltaP_points:
-#             if api_number not in api_deltaP_values:
-#                 api_deltaP_values[api_number] = []
-#             api_deltaP_values[api_number].append(deltaP)
-#
-#         for api_number, deltaP_values in api_deltaP_values.items():
-#             median_deltaP = np.median(deltaP_values)
-#             if api_number not in api_median_deltaP_shallow:
-#                 api_median_deltaP_shallow[api_number] = []
-#             api_median_deltaP_shallow[api_number].append((date, median_deltaP))
-#
-#     all_shallow_median_deltaPs = []
-#
-#     for api_number, median_deltaP_points in api_median_deltaP_shallow.items():
-#         if api_number not in api_legend_map:
-#             distance = distance_data.get(api_number, 'N/A')
-#             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
-#         dates, deltaPs = zip(*median_deltaP_points)
-#         ax1.plot(dates, deltaPs, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
-#         all_shallow_median_deltaPs.extend(deltaPs)
-#
-#     legend_handles = []
-#     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
-#     for legend_label, _, color in sorted_legend_items:
-#         legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
-#
-#     x_min, x_max = ax1.get_xlim()
-#     origin_date_str = earthquake_info['Origin Date']
-#     origin_date = datetime.datetime.strptime(origin_date_str, '%Y-%m-%d')
-#     origin_date_num = mdates.date2num(origin_date)
-#     if x_min <= origin_date_num <= x_max:
-#         ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-#     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-#                                                                               f'\nOrigin Time: {earthquake_info["Origin Time"]}'
-#                                                                               f'\nOrigin Date: {origin_date_str}'
-#                                                                               f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'
-#                                                                               f'\nRange: {range_km} km'))
-#
-#     ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Shallow Well ({range_km} KM Range)')
-#     ax1.set_ylabel('Daily Tubing Friction Loss (PSI)')
-#     ax1.set_xlabel('Date')
-#     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
-#     ax1.xaxis.set_major_locator(mdates.MonthLocator())
-#     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-#     ax1.tick_params(axis='x', rotation=45)
-#
-#     # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
-#     if all_shallow_median_deltaPs:
-#         shallow_min, shallow_max = np.percentile(all_shallow_median_deltaPs, [5, 95])
-#         ax1.set_ylim(shallow_min, shallow_max)
-#
-#     # Plot deep well data
-#     ax2 = axes[1]
-#     api_legend_map = {}  # Reset
-#     api_median_deltaP_deep = {}  # Dictionary to store median deltaP for each API number over a 3-day span
-#
-#     for date, deltaP_points in deep_deltaP_data.items():
-#         api_deltaP_values = {}
-#         for api_number, deltaP in deltaP_points:
-#             if api_number not in api_deltaP_values:
-#                 api_deltaP_values[api_number] = []
-#             api_deltaP_values[api_number].append(deltaP)
-#
-#         for api_number, deltaP_values in api_deltaP_values.items():
-#             median_deltaP = np.median(deltaP_values)
-#             if api_number not in api_median_deltaP_deep:
-#                 api_median_deltaP_deep[api_number] = []
-#             api_median_deltaP_deep[api_number].append((date, median_deltaP))
-#
-#     all_deep_median_deltaPs = []
-#
-#     for api_number, median_deltaP_points in api_median_deltaP_deep.items():
-#         if api_number not in api_legend_map:
-#             distance = distance_data.get(api_number, 'N/A')
-#             api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
-#         dates, deltaPs = zip(*median_deltaP_points)
-#         ax2.plot(dates, deltaPs, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
-#         all_deep_median_deltaPs.extend(deltaPs)
-#
-#     legend_handles = []
-#     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
-#     for legend_label, _, color in sorted_legend_items:
-#         legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
-#
-#     x_min, x_max = ax2.get_xlim()
-#     if x_min <= origin_date_num <= x_max:
-#         ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-#     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-#                                                                               f'\nOrigin Time: {earthquake_info["Origin Time"]}'
-#                                                                               f'\nOrigin Date: {origin_date_str}'
-#                                                                               f'\nLocal Magnitude: {earthquake_info["Local Magnitude"]}'
-#                                                                               f'\nRange: {range_km} km'))
-#
-#     ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily deltaP Data - Deep Well ({range_km} KM Range)')
-#     ax2.set_ylabel('Daily Tubing Friction Loss (PSI)')
-#     ax2.set_xlabel('Date')
-#     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
-#     ax2.xaxis.set_major_locator(mdates.MonthLocator())
-#     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-#     ax2.tick_params(axis='x', rotation=45)
-#
-#     # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
-#     if all_deep_median_deltaPs:
-#         deep_min, deep_max = np.percentile(all_deep_median_deltaPs, [5, 95])
-#         ax2.set_ylim(deep_min, deep_max)
-#
-#     # Adjust the layout
-#     plt.tight_layout()
-#     plt.subplots_adjust(hspace=0.3)
-#
-#     # Save the plot to a file
-#     output_file_path = os.path.join(output_directory,
-#                                     f"daily_deltaP_plot_{earthquake_info['Event ID']}_range{range_km}km.png")
-#     plt.savefig(output_file_path, bbox_inches='tight')
-#     plt.close()
-#
-#     print(f"DeltaP plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
 def create_well_histogram_per_api(cleaned_well_data_df, range_km, output_directory=None):
@@ -1096,11 +946,14 @@ if len(sys.argv) > 1:
         # User-provided values for range_km
         range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
 
-        b3df = clean_csv(b3csv=b3csvfile_path, earthquake_information=earthquake_info, strawn_formation_info=STRAWN_FORMATION_DATA_FILE_PATH)
+        b3df = clean_csv(b3csv=b3csvfile_path, earthquake_information=earthquake_info,
+                         strawn_formation_info=STRAWN_FORMATION_DATA_FILE_PATH)
         prepared_b3df = calculate_b3_total_bh_pressure(cleaned_b3df=b3df)
         b3_data_quality_histogram(prepared_b3df, range_km, output_dir)
         plot_b3_bhp(prepared_b3df, earthquake_info, output_dir, range_km)
         plot_b3_ijv(prepared_b3df, earthquake_info, output_dir, range_km)
+        create_indiv_subplot_dirs(base_dir=output_dir)
+        gather_well_data(base_path=output_dir)
 
         quit()
 

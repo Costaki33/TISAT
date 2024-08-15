@@ -10,9 +10,13 @@ def plot_injection_data(file_path, output_directory):
     try:
         # Read the data from the text file
         data = pd.read_csv(file_path, sep='\t')
+        data.columns = data.columns.str.strip()
 
         # Convert the 'Date' column to datetime format
         data['Date'] = pd.to_datetime(data['Date'])
+
+        # Determine the correct column for volume
+        volume_column = 'Injection (BBLs)' if 'Injection (BBLs)' in data.columns else 'Monthly Volume (BBL)'
 
         # Get the unique API numbers
         api_numbers = data['API Number'].unique()
@@ -22,9 +26,9 @@ def plot_injection_data(file_path, output_directory):
             api_data = data[data['API Number'] == api_number]
 
             plt.figure(figsize=(10, 6))
-            plt.scatter(api_data['Date'], api_data['Injection (BBLs)'])
+            plt.scatter(api_data['Date'], api_data[volume_column])
             plt.xlabel('Date')
-            plt.ylabel('Injection (BBLs)')
+            plt.ylabel(volume_column)
             plt.title(f'Injection Data for API Number {api_number}')
             plt.grid(True)
 
