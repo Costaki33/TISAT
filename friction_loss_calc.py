@@ -1,12 +1,18 @@
 import math
 import colebrook
 import pandas as pd
+from pint import UnitRegistry
 from fractions import Fraction
 
+# Constants
+SEC_IN_DAY = 86400
+BBL_TO_CUBIC_METERS = 0.158987
+FEET_TO_METERS = 0.3048
+PA_TO_PSI = 6894.76
+
+# Load data
 tubing_information = '/home/skevofilaxc/Documents/earthquake_data/2024-03-06T08.47.26.270812_2024-03-05 cmpl tubing.py.csv'
 tubing_dimensions = [
-    # [Outer Diameter (in), Inner Diameter (in)]
-    # Corresponding OD, ID
     [2.063, 1.751],
     [2.375, 2],
     [2.875, 2.4],
@@ -18,88 +24,61 @@ tubing_dimensions = [
     [7, 6.3]
 ]
 tubing_dim_df = pd.DataFrame(tubing_dimensions, columns=['outer_diameter', 'inner_diameter'])
-pipe_data_df = pd.read_csv(tubing_information)
-pipe_data_df['modified_dt'] = pd.to_datetime(pipe_data_df['modified_dt'])
+pipedata_df = pd.read_csv(tubing_information)
+pipedata_df['modified_dt'] = pd.to_datetime(pipedata_df['modified_dt'])
+ureg = UnitRegistry()
 
 
 def parse_tubing_size(size_str):
-    # Split the string into parts
     parts = size_str.split()
     if len(parts) == 1:
-        # If only one part, assume it's a whole number
         return float(parts[0])
     elif len(parts) == 2:
-        # If two parts, assume first part is whole number and second part is fraction
         whole_part = float(parts[0])
         fraction_part = Fraction(parts[1])
         return whole_part + fraction_part
-    return None
+    raise ValueError("Invalid tubing size format")
 
 
-def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft, pipe_data_df=pipe_data_df):
-    # For Newtonian Fluids
-    # Look for the rows whose API numbers match the one provided
-    # Find the row with the closest 'modified_dt' to injection_date
+def friction_loss(api_number, injection_date, injected_bbl, packer_depth_ft, b3, pipe_data_df=pipedata_df):
+    api_number = int(api_number)
+    density = 997  # kg/m^3
+    viscosity = 0.001  # Pa·s
+
+    # Find the closest matching row
     matching_rows = pipe_data_df[pipe_data_df['api_no'] == api_number]
-
     if matching_rows.empty:
-        # This means that the API number wasn't found, instead we are going to find the row with the
-        # closest packer_set to the inputted packer_depth
-        # print(f"API Number not found")
-        closest_row_index = (pipe_data_df['packer_set'] - packer_depth_ft).abs().idxmin()
-        closest_row = pipe_data_df.loc[[closest_row_index]]
+        closest_row = pipe_data_df.loc[(pipe_data_df['packer_set'] - packer_depth_ft).abs().idxmin()]
     else:
-        # print("API Number Found")
         closest_row = matching_rows.iloc[
             (matching_rows['modified_dt'] - pd.to_datetime(injection_date)).abs().argsort()[:1]]
-        # print(f"Closest Row:\n{closest_row}")
-        # print(f"Packer depth: {packer_depth_ft}")
 
-    tubing_size = closest_row['tubing_size'].iloc[0]
-    tubing_size = parse_tubing_size(tubing_size)
+    packer_depth_ft = closest_row['packer_set'] if isinstance(closest_row['packer_set'], float) else closest_row['packer_set'].iloc[0]
+    tubing_size_str = closest_row['tubing_size'] if isinstance(closest_row['tubing_size'], str) else closest_row['tubing_size'].iloc[0]
+    tubing_size = parse_tubing_size(tubing_size_str)
+    tubing_dim_row = tubing_dim_df.iloc[(tubing_dim_df['outer_diameter'] - tubing_size).abs().idxmin()]
 
-    outer_diameter_row = tubing_dim_df.iloc[(tubing_dim_df['outer_diameter'] - tubing_size).abs().idxmin()]
-    outer_diameter_inches = outer_diameter_row['outer_diameter']
-    inner_diameter_inches = outer_diameter_row['inner_diameter']
+    outer_diameter_inches = tubing_dim_row['outer_diameter']
+    inner_diameter_inches = tubing_dim_row['inner_diameter']
+    D_outer = (outer_diameter_inches * ureg.inch).to('meter').magnitude
+    D_inner = (inner_diameter_inches * ureg.inch).to('meter').magnitude
+    area_m2 = (math.pi / 4) * (D_inner ** 2)
 
-    # roh = 64.3 lbm/ft^3 = 1.03-specific gravity water, using 66.87 based on conversion of
-    # 8.94 lb/gal to lbm/ft^3
-    # Viscosity of Water at bottomhole conditons = 0.6 cp
-    # print(f"Injected BBL: {injected_bbl}\nInner Diameter (in): {inner_diameter_inches}")
-    newtonian_reynolds = (1.48 * injected_bbl * 64.3) / (0.1 * inner_diameter_inches)
-    # print(f"Newtonian Reynolds: {newtonian_reynolds}")
+    sec_in_day = SEC_IN_DAY * pd.Period(year=injection_date.year, month=injection_date.month, freq='M').days_in_month if b3 == 1 else SEC_IN_DAY
+    flow_rate_m3_s = (injected_bbl * BBL_TO_CUBIC_METERS) / sec_in_day
 
-    if newtonian_reynolds < 2100:  # Laminar Flow
-        # print("Laminar Flow")
-        friction_factor = 16 / newtonian_reynolds
-    else:  # Turbulent Flow
-        # print("Turbulent Flow")
-        # Pipe roughness "We have been using 0.0001 (dimensionless) as an estimate, which is a fairly smooth value."
-        friction_factor = colebrook.sjFriction(newtonian_reynolds, roughness=0.0001)
+    fluid_velocity_m_s = flow_rate_m3_s / area_m2
+    reynolds_number = (density * fluid_velocity_m_s * D_inner) / viscosity
 
-    # print(f"Friction Factor: {friction_factor}")
-    # Fanning Equation - Frictional Pressure Drop Equation
-    fluid_velocity_ft_s = (4 * injected_bbl * 5.615 * (1 / 86400)) / (
-                math.pi * (inner_diameter_inches / 12) ** 2)  # ft/s
-    deltaP = ((2 * friction_factor * 64.3 * (fluid_velocity_ft_s ** 2) * packer_depth_ft)
-              / (32.17 * (inner_diameter_inches / 12))) * (1 / 144)  # PSI
-    return deltaP
+    if reynolds_number < 2100:
+        # print(f"Laminar Flow")
+        friction_factor = 64 / reynolds_number
+    else:
+        # print(f"Turbulent Flow")
+        friction_factor = colebrook.sjFriction(reynolds_number, roughness=0.0001)
 
-# API NUM: 32938683
-# Injected BBL: 4372.0
-# Injection Date: 2020-09-30 00:00:00
-# Packer Depth: 6130
+    packer_depth_m = packer_depth_ft * FEET_TO_METERS
+    deltaP_pa = (2 * friction_factor * density * (fluid_velocity_m_s ** 2) * packer_depth_m) / D_inner
+    deltaP_psi = deltaP_pa / PA_TO_PSI
 
-# API NUM: 13506723
-# Injected BBL: 299.0
-# Injection Date: 2020-10-01 00:00:00
-# Packer Depth: 13316
-
-# API NUM: 32936971
-# Injected BBL: 278.0
-# Injection Date: 2020-09-30 00:00:00
-# Packer Depth: 6000
-
-# deltaP_psi = friction_loss(api_number=32936971, injection_date='2020-09-30 00:00:00', injected_bbl=278.0,
-#                            packer_depth_ft=6000)
-# print(f"Delta P (psi): {deltaP_psi}")
+    return deltaP_psi
