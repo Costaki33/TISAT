@@ -949,6 +949,10 @@ if len(sys.argv) > 1:
         b3df = clean_csv(b3csv=b3csvfile_path, earthquake_information=earthquake_info,
                          strawn_formation_info=STRAWN_FORMATION_DATA_FILE_PATH)
         prepared_b3df = calculate_b3_total_bh_pressure(cleaned_b3df=b3df)
+
+        output_file_path = os.path.join(output_dir, "b3_cleaned.csv")
+        prepared_b3df.to_csv(output_file_path, index=False)
+
         b3_data_quality_histogram(prepared_b3df, range_km, output_dir)
         plot_b3_bhp(prepared_b3df, earthquake_info, output_dir, range_km)
         plot_b3_ijv(prepared_b3df, earthquake_info, output_dir, range_km)
@@ -989,9 +993,8 @@ if len(sys.argv) > 1:
         strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
         cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                                 earthquake_origin_date, strawn_formation_data, year_cutoff)
-        cleaned_well_data_df.to_csv(f'{output_dir}/cleaned_well_data.csv', index=False)
+        cleaned_well_data_df.to_csv(f'{output_dir}/ivrt_cleaned_well_data.csv', index=False)
 
-        # print(cleaned_well_data_df.tail(20))
         histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, output_dir)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 

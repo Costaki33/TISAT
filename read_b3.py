@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 from collections import defaultdict
 from friction_loss_calc import friction_loss
 
+
 def classify_well_type(well_lat, well_lon, well_depth, strawn_formation_data, cache={}):
     """
     Function to classify well type between Shallow or Deep based on the Z-depth of the well
