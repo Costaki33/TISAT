@@ -26,7 +26,7 @@ This directory will hold critical data resources that the tool will reference fo
 
 1. **Clone the Repository:**
    Clone the repository to your local environment using:
-   ```bash
+   ```python
    git clone [<repository-url>](https://github.com/Costaki33/TEIAT.git)
    ```
 
