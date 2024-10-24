@@ -34,11 +34,11 @@ This directory will hold critical data resources that the tool will reference fo
    - Create two directories:
      - One to store generated outputs (images and files).
        Modify the following path in the `teiat.py` script:
-       ```python
-       # Line 24:
-       OUTPUT_DIR = '/your/output/directory/path'
-       ```
-   - Another to hold data sources for processing (IE. Strawn Formation Data File)
+        ```python
+            # Line 24:
+            OUTPUT_DIR = '/your/output/directory/path'
+        ```
+     - Another to hold data sources for processing (IE. Strawn Formation Data File)
      
 4. **Gather Required Data:**
    - Gather the Strawn Formation Data file (Latitude, Longitude, and Z Depth):
