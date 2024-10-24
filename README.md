@@ -79,12 +79,13 @@ This directory will hold critical data resources that the tool will reference fo
 
 ## Running the Code
 
-Run the following in your code environment:
 
+Run the following in your code environment:
+### Data Source: TexNet 
 ```bash
 python3 inj_pandas_optimized.py 1
 ```
-It will prompt you to enter a directory path where the outputted files will go: 
+It will prompt you to enter a directory path where the outputted files will go. If it doesn't exist, TEIAT will automatically make the directory for you in the working space where TEIAT is: 
 ```bash
 Enter the output directory file path: 
 ```
@@ -105,13 +106,27 @@ If you do not have access to the TexNet URL Builder, there is a format that the 
 ```bash
 EventID,Time,Latitude,Longitude,Depth/km,Magnitude,EventLocationName
 ```
-You can go to the [TexNet Catalog](https://catalog.texnet.beg.utexas.edu/), search for a earthquake you are interested in such as: 
+You can go to the [TexNet Catalog](https://catalog.texnet.beg.utexas.edu/), search for an earthquake you are interested in, and recreate the format to input it into TEIAT as shown below:
 
 ![Catalog Example](https://github.com/Costaki33/TEIAT/raw/main/images/catalog_example.png)
 
+You then will be asked to input a search range in kilometers, which will allow TEIAT to gather all well information within said radius, with the starting point being the earthquake epicenter
+```bash
+Enter the range in kilometers (E.g. 20km): 
+```
+Finally, you will be asked to send a year cutoff for analysis leading up to the earthquake. Do not make the cutoff request longer than the length of prior information that is available to the TexNet Earthquake Injection Reporting tool, 
+as there will be a lack of information the plots can reference. 
+```bash
+Enter the year cutoff you would like to analyze prior to the earthquake: (E.g. 5 yrs): 
+```
 
-
-
-
-
+### Data Source: B3 
+```bash
+python3 inj_pandas_optimized.py 0
+```
+After prompting for an output directory, TEIAT will ask the following: 
+```bash
+Please provide B3 data filepath (In CSV format):
+```
+If you have access to a B3 subscription, please enter the MonthlyInjection data as a CSV file to be used as the data source. 
 
