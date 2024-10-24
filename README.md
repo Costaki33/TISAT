@@ -27,7 +27,7 @@ This directory will hold critical data resources that the tool will reference fo
 1. **Clone the Repository:**
    Clone the repository to your local environment using:
    ```bash
-   git clone [<repository-url>](https://github.com/Costaki33/tisat.git)
+   git clone https://github.com/Costaki33/TISAT.git
    ```
 
 3. **Setup Directories:**
@@ -41,13 +41,13 @@ This directory will hold critical data resources that the tool will reference fo
      - Another to hold data sources for processing (IE. Strawn Formation Data File)
      
 4. **Gather Required Data:**
-   - Gather the Strawn Formation Data file (Latitude, Longitude, and Z Depth):
+   - Gather the Strawn Formation Data file (Latitude, Longitude, and Z Depth) and put it into your data folder.
         Modify the following path in the `tisat.py` script:
         ```python
             # Line 23:
             STRAWN_FORMATION_DATA_FILE_PATH = '/your/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
         ```
-   - Gather API Tube OD/ID File:
+   - Gather API Tube OD/ID File and put it into your data folder.
         Modify the following path in the `friction_loss_calc.py` script:
         ```python
             # Line 14:
@@ -55,16 +55,16 @@ This directory will hold critical data resources that the tool will reference fo
         ```
 ## Code Logic
 
-- **Input Earthquake Data:** The user provides earthquake data from the SeisComP FDSNWS Event - URL Builder in CSV format.
+- **Input Earthquake Data:** The user provides earthquake data from the **SeisComP FDSNWS Event - URL Builder in CSV format**.
 
-- **Find Closest Wells:** The tool locates the N closest wells (based on API number) to the earthquake within a set range (default: 20 km). It fetches well data from the TexNet Injection Tool API.
+- **Find Closest Wells:** The tool locates the closest wells to the earthquake within a set range. Well data is fetched from the TexNet Injection Reporting Tool's API.
 
 - **Data Quality Analysis:**
-  - **Complete Data:** Well Injection BBL and Avg Pressure PSIG available.
-  - **Incomplete Data:** Well Injection BBL available but Avg Pressure PSIG missing.
+  - **Complete Data:** Well Injection BBL and Avg Pressure PSIG is available.
+  - **Incomplete Data:** Well Injection BBL available but Avg Pressure PSIG is missing.
   - **Missing Data:** Both Well Injection BBL and Avg Pressure PSIG are missing.
 
-- **Data Validation:** Validates injection data within ±1 year of the earthquake.
+- **Data Validation:** Validates injection data up to a provided year cutoff before the earthquake (IE. 5 years prior).
 
 - **Calculate Bottomhole Pressure:** Calculates bottomhole pressure using the formula provided by Jim Moore (RRC):
     ```python
@@ -72,7 +72,11 @@ This directory will hold critical data resources that the tool will reference fo
     ```
     - **Hydrostatic pressure formula:** `0.465 psi/ft X depth (ft)`
     - **Friction loss (DeltaP):** Computed using the Colebrook-White equation for turbulent flow.
-
+   
+   *Note regarding bottomhole pressure calculation, the equation above is the ideal formula to be used when calculating. However, due to either a lack of precise of well depth information available, when calculating
+    deltaP (friction loss), the depth used may either be the **depth of the packer** or the **depth of the well**. Ideally it is the depth of the packer, but if not available the depth of the well is used.*
+    *Please review the `friction_loss_calc.py` and `tisat.py` to get a better understanding of how we handle for lack of well depth information*
+  
 - **Well Sorting:** Wells are sorted as deep or shallow based on the Strawn Formation, with shallow wells plotted on the top of the figure and vice versa for deep wells.
 
 - **Visualization:** Generates plots and histograms for injection pressure trends, differentiating between deep and shallow wells.
@@ -83,9 +87,9 @@ This directory will hold critical data resources that the tool will reference fo
 Run the following in your code environment:
 ### Data Source: TexNet 
 ```bash
-python3 inj_pandas_optimized.py 1
+python3 tisat.py 1
 ```
-It will prompt you to enter a directory path where the outputted files will go. If it doesn't exist, TISAT will automatically make the directory for you in the working space where TiSAT is: 
+It will prompt you to enter a directory path where the outputted files will go. If it doesn't exist, TISAT will automatically make the directory for you in the working space where TISAT is: 
 ```bash
 Enter the output directory file path: 
 ```
@@ -102,27 +106,26 @@ Enter the earthquake data in CSV format: texnet2024ophu,2024-07-26T14:28:29.1438
 Information about the current earthquake:
 {'Event ID': 'texnet2024ophu', 'Latitude': 32.76580810546875, 'Longitude': -100.65941787347559, 'Origin Date': '2024-07-26', 'Origin Time': '14:28:29', 'Local Magnitude': 5.14} 
 ```
-If you do not have access to the TexNet URL Builder, there is a format that the URL Builder uses to generate the CSV format, which is as follows: 
+If you do not have access to the TexNet URL Builder (you must be on the BEG VPN to access), there is a format that the URL Builder uses to generate the CSV format, which is as follows: 
 ```bash
 EventID,Time,Latitude,Longitude,Depth/km,Magnitude,EventLocationName
 ```
-You can go to the [TexNet Catalog](https://catalog.texnet.beg.utexas.edu/), search for an earthquake you are interested in, and recreate the format to input it into tisat as shown below:
+You can go to the [TexNet Catalog](https://catalog.texnet.beg.utexas.edu/), search for an earthquake you are interested in, and recreate the format to input it into TISAT as shown below:
 
 ![Catalog Example](https://github.com/Costaki33/tisat/raw/main/images/catalog_example.png)
 
-You then will be asked to input a search range in kilometers, which will allow TISAT to gather all well information within said radius, with the starting point being the earthquake epicenter
+You then will be asked to input a search range in kilometers, which will allow TISAT to gather all well information within said radius, with the starting point being the earthquake epicenter:
 ```bash
 Enter the range in kilometers (E.g. 20km): 
 ```
-Finally, you will be asked to send a year cutoff for analysis leading up to the earthquake. Do not make the cutoff request longer than the length of prior information that is available to the TexNet Earthquake Injection Reporting tool, 
-as there will be a lack of information the plots can reference. 
+Finally, you will be asked to send a year cutoff for analysis leading up to the earthquake. Do not make the cutoff request longer than the total length of available prior information that is available to the TexNet Injection Reporting Tool, as there will be a lack of information the plots can reference. For example, the TexNet Injection Reporting Tool as information up until 2017. It is not recommended to do a year prior than that on this data source.  
 ```bash
 Enter the year cutoff you would like to analyze prior to the earthquake: (E.g. 5 yrs): 
 ```
 
 ### Data Source: B3 
 ```bash
-python3 inj_pandas_optimized.py 0
+python3 tisat.py 0
 ```
 After prompting for an output directory, TISAT will ask the following: 
 ```bash
@@ -135,7 +138,7 @@ The script outputs:
 
 - Plots showing injection pressures for shallow and deep wells.
 - Histograms of complete, incomplete, and missing data for a given well over time.
-- Text files containing well injection data used for plot generation.
+- Text and CSV files containing cleaned and compiled well injection data used for plot generation.
 
 Below are sample output plots of injection activity over time as well as the quality of the reported data within the vicinity of the 4.5M Scurry-Fisher, TX earthquake:
 
@@ -150,3 +153,6 @@ Below are sample output plots of injection activity over time as well as the qua
 ## Applications
 **TISAT** enables detailed analysis of injection activity across multiple wells at different depths, helping seismologists identify unusual injection patterns that may be linked to induced seismicity in a given region. 
 TISAT has been instrumental in identifying hazardous well activity in the Scurry-Fisher region of Texas, which was linked to the inducement of four M4+ earthquakes in the area. 
+
+## Questions? 
+Please reach out to **constantinos.skevofilax@austin.utexas.edu** for any questions about usage, code development, or applications!
