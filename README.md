@@ -28,6 +28,7 @@ This directory will hold critical data resources that the tool will reference fo
    Clone the repository to your local environment using:
    ```bash
    git clone [<repository-url>](https://github.com/Costaki33/TEIAT.git)
+   ```
 
 2. **Setup Directories:**
    Create two directories:
