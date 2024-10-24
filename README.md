@@ -139,10 +139,10 @@ The script outputs:
 
 Below are sample output plots of injection activity over time as well as the quality of the reported data within the vicinity of the 4.5M Scurry-Fisher, TX earthquake:
 
-![Daily Injection Plot](https://github.com/Costaki33/tisat/raw/main/images/daily_injection_plot_texnet2024ophu_range25.0km.png)
+![Daily Injection Plot](https://github.com/Costaki33/TISAT/raw/main/images/daily_injection_plot_texnet2024ophu_range25.0km.png)
 
-![Average Pressure Plot](https://github.com/Costaki33/tisat/raw/main/images/event_texnet2024ophu_listed_avg_pressure_range25.0km.png)
+![Average Pressure Plot](https://github.com/Costaki33/TISAT/raw/main/images/event_texnet2024ophu_listed_avg_pressure_range25.0km.png)
 
-![Well Data Histogram 15100308](https://github.com/Costaki33/tisat/raw/main/images/well_data_histogram_15100308_range25.0km.png)
+![Well Data Histogram 15100308](https://github.com/Costaki33/TISAT/raw/main/images/well_data_histogram_15100308_range25.0km.png)
 
-![Well Data Histogram 15133086](https://github.com/Costaki33/tisat/raw/main/images/well_data_histogram_15133086_range25.0km.png)
+![Well Data Histogram 15133086](https://github.com/Costaki33/TISAT/raw/main/images/well_data_histogram_15133086_range25.0km.png)
