@@ -2,7 +2,7 @@
 By RE. Constantinos Skevofilax and PhD. Alexandros Savvaidis of BEG TexNet
 
 ### Introduction 
-The TexNet Injection-Seismic Analysis Tool is designed to efficiently analyze the relationship between oil and gas fracking operations and the occurrence of induced earthquakes.
+The TexNet Injection-Seismic Analysis Tool (TISAT) is designed to efficiently analyze the relationship between oil and gas fracking operations and the occurrence of induced earthquakes.
 
 The tool plots reported well injection volumes and pressures, and calculates the daily bottomhole pressure experienced underground for the N closest oil and gas wells to a specific earthquake. The goal is to assess the potential influence of these operations on earthquake activity.
 
