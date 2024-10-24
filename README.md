@@ -84,4 +84,33 @@ Run the following in your code environment:
 ```bash
 python3 inj_pandas_optimized.py 1
 ```
+It will prompt you to enter a directory path where the outputted files will go: 
+```bash
+Enter the output directory file path: 
+```
+It will then prompt you to input a TexNet event ID and fetch earthquake data from the URL Builder. The script will automatically open the URL Builder: 
+```bash
+Click on the following link to fetch earthquake data:
+http://scdb.beg.utexas.edu/fdsnws/event/1/builder
+Enter the earthquake data in CSV format: 
+```
+CSV file refers to the format of the earthquake. For example:
+```bash
+Enter the earthquake data in CSV format: texnet2024ophu,2024-07-26T14:28:29.143846Z,32.76580810546875,-100.65941787347559,3.2958984375,5.136142178709405,"Western Texas"
+
+Information about the current earthquake:
+{'Event ID': 'texnet2024ophu', 'Latitude': 32.76580810546875, 'Longitude': -100.65941787347559, 'Origin Date': '2024-07-26', 'Origin Time': '14:28:29', 'Local Magnitude': 5.14} 
+```
+If you do not have access to the TexNet URL Builder, there is a format that the URL Builder uses to generate the CSV format, which is as follows: 
+```bash
+EventID,Time,Latitude,Longitude,Depth/km,Magnitude,EventLocationName
+```
+You can go to the [TexNet Catalog](https://catalog.texnet.beg.utexas.edu/), search for a earthquake you are interested in such as: 
+
+
+
+
+
+
+
 
