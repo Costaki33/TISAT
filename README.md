@@ -29,8 +29,16 @@ This directory will hold critical data resources that the tool will reference fo
    ```bash
    git clone https://github.com/Costaki33/TISAT.git
    ```
+2. **Requirements**
+   Please have the latest Python version installed.
 
-3. **Setup Directories:**
+   Similarly, review the `requirements.txt` file for the necessary libraries you need to have installed.
+   You may alternatively run the following to install the required libraries on your machine: 
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Setup Directories:**
    - Create two directories:
      - One to store generated outputs (images and files).
        Modify the following path in the `tisat.py` script:
@@ -40,7 +48,7 @@ This directory will hold critical data resources that the tool will reference fo
         ```
      - Another to hold data sources for processing (IE. Strawn Formation Data File)
      
-4. **Gather Required Data:**
+5. **Gather Required Data:**
    - Gather the Strawn Formation Data file (Latitude, Longitude, and Z Depth) and put it into your data folder.
         Modify the following path in the `tisat.py` script:
         ```python
