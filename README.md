@@ -107,6 +107,7 @@ EventID,Time,Latitude,Longitude,Depth/km,Magnitude,EventLocationName
 ```
 You can go to the [TexNet Catalog](https://catalog.texnet.beg.utexas.edu/), search for a earthquake you are interested in such as: 
 
+![Catalog Example](https://github.com/Costaki33/TEIAT/raw/main/images/catalog_example.png)
 
 
 
