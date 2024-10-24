@@ -26,11 +26,11 @@ This directory will hold critical data resources that the tool will reference fo
 
 1. **Clone the Repository:**
    Clone the repository to your local environment using:
-   ```python
+   ```bash
    git clone [<repository-url>](https://github.com/Costaki33/TEIAT.git)
    ```
 
-2. **Setup Directories:**
+3. **Setup Directories:**
    Create two directories:
    - One to store generated outputs (images and files)
         Modify the following path in the `teiat.py` script:
@@ -40,7 +40,7 @@ This directory will hold critical data resources that the tool will reference fo
          ```
    - Another to hold data sources for processing (IE. Strawn Formation Data File)
      
-3. **Gather Required Data:**
+4. **Gather Required Data:**
    - Gather the Strawn Formation Data file (Latitude, Longitude, and Z Depth):
         Modify the following path in the `teiat.py` script:
         ```python
