@@ -78,8 +78,21 @@ def clean_csv(b3csv: csv, earthquake_information: dict, strawn_formation_info: s
     strawn_formation_data = pd.read_csv(strawn_formation_info, delimiter=',')
     earthquake_lat = earthquake_information['Latitude']
     earthquake_lon = earthquake_information['Longitude']
-    well_lat = b3df['SurfaceHoleLatitude']
-    well_lon = b3df['SurfaceHoleLongitude']
+
+    # Determine which columns are available for latitude and longitude
+    if 'SurfaceHoleLatitude' in b3df.columns:
+        well_lat = b3df['SurfaceHoleLatitude']
+    elif 'SurfaceH_1' in b3df.columns:
+        well_lat = b3df['SurfaceH_1']
+
+    if 'SurfaceHoleLongitude' in b3df.columns:
+        well_lon = b3df['SurfaceHoleLongitude']
+    elif 'SurfaceH_2' in b3df.columns:
+        well_lon = b3df['SurfaceH_2']
+
+    # Add these new columns to your DataFrame
+    b3df['Well_Latitude'] = well_lat
+    b3df['Well_Longitude'] = well_lon
 
     # Fix APINumber: Remove all "-" and first two characters to have matching values with IVRT
     b3df['APINumber'] = b3df['APINumber'].str.replace("-", "")
@@ -88,14 +101,21 @@ def clean_csv(b3csv: csv, earthquake_information: dict, strawn_formation_info: s
     distance = round(haversine_distance_series(earthquake_lat, earthquake_lon, well_lat, well_lon), 2)
     b3df['Distance from Earthquake (km)'] = distance
 
+    # Rename if existing 'MeasuredDe' to 'MeasuredDepthFt'
+    if 'MeasuredDe' in b3df.columns: b3df.rename(columns={"MeasuredDe": "MeasuredDepthFt"}, inplace=True)
+
+
     # Fix Date: Convert provided date information into datetime for plotting
-    b3df['StartOfMonthDate'] = pd.to_datetime(b3df['StartOfMonthDate']).dt.normalize()
+    if 'StartOfMonthDate' in b3df.columns:
+        b3df['StartOfMonthDate'] = pd.to_datetime(b3df['StartOfMonthDate']).dt.normalize()
+    elif 'StartOfMon' in b3df.columns:
+        b3df['StartOfMon'] = pd.to_datetime(b3df['StartOfMon']).dt.normalize()
 
     well_types_map = {}
     for index, row in b3df.iterrows():
         api_number = row['APINumber']
-        well_lat = row['SurfaceHoleLatitude']
-        well_lon = row['SurfaceHoleLongitude']
+        well_lat = row['Well_Latitude']
+        well_lon = row['Well_Longitude']
         well_depth = row['MeasuredDepthFt']
         well_types_map[api_number] = classify_well_type(well_lat, well_lon, well_depth, strawn_formation_data)
 
