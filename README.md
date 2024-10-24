@@ -120,7 +120,9 @@ EventID,Time,Latitude,Longitude,Depth/km,Magnitude,EventLocationName
 ```
 You can go to the [TexNet Catalog](https://catalog.texnet.beg.utexas.edu/), search for an earthquake you are interested in, and recreate the format to input it into TISAT as shown below:
 
-![Catalog Example](https://github.com/Costaki33/tisat/raw/main/images/catalog_example.png)
+<p align="center">
+  <img src="https://github.com/Costaki33/tisat/raw/main/images/catalog_example.png" alt="Catalog Example">
+</p>
 
 You then will be asked to input a search range in kilometers, which will allow TISAT to gather all well information within said radius, with the starting point being the earthquake epicenter:
 ```bash
