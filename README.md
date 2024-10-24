@@ -30,8 +30,8 @@ This directory will hold critical data resources that the tool will reference fo
    git clone https://github.com/Costaki33/TISAT.git
    ```
 2. **Requirements**
-   Please have the latest Python version installed.
 
+   Please have the latest Python version installed.
    Similarly, review the `requirements.txt` file for the necessary libraries you need to have installed.
    You may alternatively run the following to install the required libraries on your machine: 
    ```bash
