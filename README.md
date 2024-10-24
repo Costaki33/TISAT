@@ -162,7 +162,7 @@ Below are sample output plots of injection activity over time as well as the qua
 
 ## Applications
 **TISAT** enables detailed analysis of injection activity across multiple wells at different depths, helping seismologists identify unusual injection patterns that may be linked to induced seismicity in a given region. 
-TISAT has been instrumental in identifying hazardous well activity in the Scurry-Fisher region of Texas, which was linked to the inducement of four M4+ earthquakes in the area. 
+TISAT has been instrumental in identifying hazardous well activity in the Scurry-Fisher region of Texas, which was linked to the inducement of four M4+ earthquakes in the area in July 2024. 
 
 ## Questions? 
 Please reach out to **constantinos.skevofilax@austin.utexas.edu** for any questions about usage, code development, or applications!
