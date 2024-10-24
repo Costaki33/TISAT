@@ -29,8 +29,16 @@ This directory will hold critical data resources that the tool will reference fo
    ```bash
    git clone https://github.com/Costaki33/TISAT.git
    ```
+2. **Requirements**
 
-3. **Setup Directories:**
+   Please have the latest Python version installed.
+   Similarly, review the `requirements.txt` file for the necessary libraries you need to have installed.
+   You may alternatively run the following to install the required libraries on your machine: 
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Setup Directories:**
    - Create two directories:
      - One to store generated outputs (images and files).
        Modify the following path in the `tisat.py` script:
@@ -40,7 +48,7 @@ This directory will hold critical data resources that the tool will reference fo
         ```
      - Another to hold data sources for processing (IE. Strawn Formation Data File)
      
-4. **Gather Required Data:**
+5. **Gather Required Data:**
    - Gather the Strawn Formation Data file (Latitude, Longitude, and Z Depth) and put it into your data folder.
         Modify the following path in the `tisat.py` script:
         ```python
@@ -112,7 +120,9 @@ EventID,Time,Latitude,Longitude,Depth/km,Magnitude,EventLocationName
 ```
 You can go to the [TexNet Catalog](https://catalog.texnet.beg.utexas.edu/), search for an earthquake you are interested in, and recreate the format to input it into TISAT as shown below:
 
-![Catalog Example](https://github.com/Costaki33/tisat/raw/main/images/catalog_example.png)
+<p align="center">
+  <img src="https://github.com/Costaki33/tisat/raw/main/images/catalog_example.png" alt="Catalog Example">
+</p>
 
 You then will be asked to input a search range in kilometers, which will allow TISAT to gather all well information within said radius, with the starting point being the earthquake epicenter:
 ```bash
@@ -152,7 +162,7 @@ Below are sample output plots of injection activity over time as well as the qua
 
 ## Applications
 **TISAT** enables detailed analysis of injection activity across multiple wells at different depths, helping seismologists identify unusual injection patterns that may be linked to induced seismicity in a given region. 
-TISAT has been instrumental in identifying hazardous well activity in the Scurry-Fisher region of Texas, which was linked to the inducement of four M4+ earthquakes in the area. 
+TISAT has been instrumental in identifying hazardous well activity in the Scurry-Fisher region of Texas, which was linked to the inducement of four M4+ earthquakes in the area in July 2024. 
 
 ## Questions? 
 Please reach out to **constantinos.skevofilax@austin.utexas.edu** for any questions about usage, code development, or applications!
