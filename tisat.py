@@ -41,7 +41,7 @@ def get_earthquake_info_from_csv(csv_string):
         'Longitude': float(longitude),
         'Origin Date': origin_date,
         'Origin Time': datetime.datetime.strptime(origin_time, '%H:%M:%S.%f').strftime('%H:%M:%S'),
-        'Local Magnitude': round(float(magnitude), 2)
+        'Local Magnitude': math.ceil(float(magnitude) * 10) / 10
     }
     return earthquake_info
 
