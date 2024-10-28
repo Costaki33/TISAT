@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from collections import defaultdict
 from matplotlib.lines import Line2D
+from sympy.abc import alpha
+
 from friction_loss_calc import friction_loss
 from individual_plots import gather_well_data
 from pandas.errors import SettingWithCopyWarning
@@ -136,62 +138,44 @@ def is_within_cutoff(injection_date, earthquake_date, cutoff_before_earthquake):
         return False
 
 
-def hsl_to_rgb(h, s, l):
-    """Convert HSL to RGB color space."""
-    c = (1 - abs(2 * l - 1)) * s
-    x = c * (1 - abs((h / 60) % 2 - 1))
-    m = l - c / 2
-    if 0 <= h < 60:
-        r, g, b = c, x, 0
-    elif 60 <= h < 120:
-        r, g, b = x, c, 0
-    elif 120 <= h < 180:
-        r, g, b = 0, c, x
-    elif 180 <= h < 240:
-        r, g, b = 0, x, c
-    elif 240 <= h < 300:
-        r, g, b = x, 0, c
-    else:
-        r, g, b = c, 0, x
-    r, g, b = (r + m), (g + m), (b + m)
-    return int(r * 255), int(g * 255), int(b * 255)
-
-
-def hex_to_hsl(hex_color):
-    """Convert HEX color to HSL."""
-    hex_color = hex_color.lstrip('#')
-    r, g, b = tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
-    return colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
-
-
-def hsl_to_hex(h, s, l):
-    """Convert HSL color to HEX."""
-    r, g, b = hsl_to_rgb(h, s, l)
-    return '#{:02x}{:02x}{:02x}'.format(r, g, b)
-
-
-def adjust_lightness(hex_color, adjustment_factor):
-    """Adjust the lightness of a color."""
-    h, l, s = hex_to_hsl(hex_color)
-    l = max(0, min(1, l * adjustment_factor))
-    return hsl_to_hex(h, s, l)
-
-
-def generate_gradient_colors(num_colors, start_color, lightness_adjustment):
-    """Generate a list of distinct gradient colors starting from a given color."""
-    # Convert start color to HSL
-    h, l, s = hex_to_hsl(start_color)
-    # Adjust lightness
-    l = max(0.1, min(0.9, l * lightness_adjustment))
-
-    # Generate distinct colors by varying the hue
-    hue_step = 360 / num_colors
-    colors = []
-    for i in range(num_colors):
-        new_hue = (h * 360 + i * hue_step) % 360
-        colors.append(hsl_to_hex(new_hue, s, l))
-
+def generate_distinct_colors(num_colors, colormap="tab20"):
+    """
+    Generate a list of distinct colors using a specified matplotlib colormap.
+    """
+    cmap = plt.get_cmap(colormap)
+    # Create an evenly spaced list of colors from the colormap
+    colors = [cmap(i / max(1, num_colors - 1)) for i in range(num_colors)]
     return colors
+
+
+def adjust_brightness(colors, adjustment_factor=1.2):
+    """
+    Brighten a list of RGBA colors by adjusting their RGB components.
+    """
+    brightened_colors = [
+        (min(color[0] * adjustment_factor, 1.0),  # Red channel
+         min(color[1] * adjustment_factor, 1.0),  # Green channel
+         min(color[2] * adjustment_factor, 1.0),  # Blue channel
+         color[3])  # Alpha channel (unchanged)
+        for color in colors
+    ]
+    return brightened_colors
+
+
+def darken_colors(colors, adjustment_factor=0.7):
+    """
+    Darken a list of RGBA colors by adjusting their RGB components.
+    """
+    darkened_colors = [
+        (color[0] * adjustment_factor, color[1] * adjustment_factor, color[2] * adjustment_factor, color[3])
+        for color in colors
+    ]
+    return darkened_colors
+
+
+def append_if_unique(item, target_list):
+    if item not in target_list:
+        target_list.append(item)
 
 
 def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some_earthquake_origin_date,
@@ -383,6 +367,8 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     local_magnitude = earthquake_info['Local Magnitude']
     origin_date = datetime.datetime.strptime(origin_date_str, '%Y-%m-%d')
     origin_date_num = mdates.date2num(origin_date)
+    shallow_apis = []
+    deep_apis = []
 
     if not total_pressure_data:
         print("No data to plot.")
@@ -428,10 +414,12 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
             for date, pressure in data.items():
                 if date != 'TYPE':
                     deep_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
+                    append_if_unique(api_number, deep_apis)
         elif data['TYPE'] == 0:
             for date, pressure in data.items():
                 if date != 'TYPE':
                     shallow_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
+                    append_if_unique(api_number, shallow_apis)
 
     # Save deep well pressure data to a text file
     deep_filename = os.path.join(output_directory,
@@ -456,16 +444,22 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
 
-    # Generate gradient colors for all API numbers
-    slightly_darker_shallow = adjust_lightness("#FFDAB9", 0.55)  # FF91A4/7FFFD4
-    slightly_darker_deep = adjust_lightness("#E6E6FA", 0.65)
-    shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow,
-                                              lightness_adjustment=1)
-    deep_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_deep, lightness_adjustment=.95)
+    # Filter sorted_all_distances for shallow and deep, making sure to keep only unique API numbers
+    shallow_distances = [(api, distance) for api, distance in sorted_all_distances if api in shallow_apis]
+    deep_distances = [(api, distance) for api, distance in sorted_all_distances if api in deep_apis]
 
-    # Create a color map for all API numbers
-    color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
-    color_map_deep = {api_number: color for (api_number, _), color in zip(sorted_all_distances, deep_colors)}
+    # Generate distinct colors using tab20
+    shallow_colors = generate_distinct_colors(len(shallow_apis), colormap="tab20")
+    deep_colors = generate_distinct_colors(len(deep_apis), colormap="tab20")
+
+    # Brighten the colors for shallow and deep
+    brightened_shallow_colors = adjust_brightness(shallow_colors, adjustment_factor=1.2)
+    brightened_deep_colors = adjust_brightness(deep_colors, adjustment_factor=1.1)
+
+    # Create color maps for API numbers
+    color_map_shallow = {api_number: color for (api_number, _), color in
+                         zip(shallow_distances, brightened_shallow_colors)}
+    color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, brightened_deep_colors)}
 
     fig, axes = plt.subplots(2, 1, figsize=(20, 12))  # Create a 2x1 grid for shallow and deep plots
 
@@ -659,6 +653,8 @@ def create_pressure_txt(listed_pressure_data, distance_data, earthquake_info, ou
     local_magnitude = earthquake_info['Local Magnitude']
     origin_date = datetime.datetime.strptime(origin_date_str, '%Y-%m-%d')
     origin_date_num = mdates.date2num(origin_date)
+    shallow_apis = []
+    deep_apis = []
 
     if not listed_pressure_data:
         print("No data to plot.")
@@ -704,10 +700,12 @@ def create_pressure_txt(listed_pressure_data, distance_data, earthquake_info, ou
             for date, pressure in data.items():
                 if date != 'TYPE':
                     deep_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
+                    append_if_unique(api_number, deep_apis)
         elif data['TYPE'] == 0:
             for date, pressure in data.items():
                 if date != 'TYPE':
                     shallow_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
+                    append_if_unique(api_number, shallow_apis)
 
     # Save deep well pressure data to a text file
     deep_filename = os.path.join(output_directory,
@@ -732,16 +730,22 @@ def create_pressure_txt(listed_pressure_data, distance_data, earthquake_info, ou
     all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
 
-    # Generate gradient colors for all API numbers
-    slightly_darker_shallow = adjust_lightness("#FFDAB9", 0.55)  # FF91A4/7FFFD4
-    slightly_darker_deep = adjust_lightness("#E6E6FA", 0.65)
-    shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow,
-                                              lightness_adjustment=1)
-    deep_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_deep, lightness_adjustment=.95)
+    # Filter sorted_all_distances for shallow and deep, making sure to keep only unique API numbers
+    shallow_distances = [(api, distance) for api, distance in sorted_all_distances if api in shallow_apis]
+    deep_distances = [(api, distance) for api, distance in sorted_all_distances if api in deep_apis]
 
-    # Create a color map for all API numbers
-    color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
-    color_map_deep = {api_number: color for (api_number, _), color in zip(sorted_all_distances, deep_colors)}
+    # Generate distinct colors using tab20
+    shallow_colors = generate_distinct_colors(len(shallow_apis), colormap="tab20")
+    deep_colors = generate_distinct_colors(len(deep_apis), colormap="tab20")
+
+    # Brighten the colors for shallow and deep
+    brightened_shallow_colors = adjust_brightness(shallow_colors, adjustment_factor=1.2)
+    brightened_deep_colors = adjust_brightness(deep_colors, adjustment_factor=1.1)
+
+    # Create color maps for API numbers
+    color_map_shallow = {api_number: color for (api_number, _), color in
+                         zip(shallow_distances, brightened_shallow_colors)}
+    color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, brightened_deep_colors)}
 
     fig, axes = plt.subplots(2, 1, figsize=(20, 12))  # Create a 2x1 grid for shallow and deep plots
 
@@ -934,6 +938,8 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     local_magnitude = earthquake_info['Local Magnitude']
     origin_date = datetime.datetime.strptime(origin_date_str, '%Y-%m-%d')
     origin_date_num = mdates.date2num(origin_date)
+    shallow_apis = []
+    deep_apis = []
 
     if not daily_injection_data:
         print("No data to plot.")
@@ -979,10 +985,12 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
             for date, injection in data.items():
                 if date != 'TYPE':
                     deep_injection_data[date].append((api_number, injection))  # Include API number with injection
+                    append_if_unique(api_number, deep_apis)
         elif data['TYPE'] == 0:
             for date, injection in data.items():
                 if date != 'TYPE':
                     shallow_injection_data[date].append((api_number, injection))  # Include API number with injection
+                    append_if_unique(api_number, shallow_apis)
 
     # Save deep well injection data to a text file
     deep_filename = os.path.join(output_directory,
@@ -1007,16 +1015,23 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
 
-    # Generate gradient colors for all API numbers
-    slightly_darker_shallow = adjust_lightness("#FFDAB9", 0.55)  # FF91A4/7FFFD4
-    slightly_darker_deep = adjust_lightness("#E6E6FA", 0.65)
-    shallow_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_shallow,
-                                              lightness_adjustment=1)
-    deep_colors = generate_gradient_colors(len(sorted_all_distances), slightly_darker_deep, lightness_adjustment=.95)
+    # Filter sorted_all_distances for shallow and deep, making sure to keep only unique API numbers
+    shallow_distances = [(api, distance) for api, distance in sorted_all_distances if api in shallow_apis]
+    deep_distances = [(api, distance) for api, distance in sorted_all_distances if api in deep_apis]
 
-    # Create a color map for all API numbers
-    color_map_shallow = {api_number: color for (api_number, _), color in zip(sorted_all_distances, shallow_colors)}
-    color_map_deep = {api_number: color for (api_number, _), color in zip(sorted_all_distances, deep_colors)}
+    # Generate distinct colors using tab20
+    shallow_colors = generate_distinct_colors(len(shallow_apis), colormap="tab20")
+    deep_colors = generate_distinct_colors(len(deep_apis), colormap="tab20")
+
+    # Brighten the colors for shallow and deep
+    brightened_shallow_colors = adjust_brightness(shallow_colors, adjustment_factor=1.2)
+    brightened_deep_colors = adjust_brightness(deep_colors, adjustment_factor=1.1)
+
+    # Create color maps for API numbers
+    color_map_shallow = {api_number: color for (api_number, _), color in
+                         zip(shallow_distances, brightened_shallow_colors)}
+    color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, brightened_deep_colors)}
+
 
     # Create subplots
     fig, axes = plt.subplots(2, 1, figsize=(20, 12))
