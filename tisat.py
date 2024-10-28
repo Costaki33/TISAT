@@ -10,6 +10,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from collections import defaultdict
+
+from geopy.distance import distance
 from matplotlib.lines import Line2D
 from friction_loss_calc import friction_loss
 from individual_plots import gather_well_data
@@ -17,7 +19,7 @@ from pandas.errors import SettingWithCopyWarning
 from subplot_dirs import create_indiv_subplot_dirs
 from well_data_query import closest_wells_to_earthquake
 from read_b3 import clean_csv, b3_data_quality_histogram, calculate_b3_total_bh_pressure, plot_b3_bhp, plot_b3_ijv
-from plot_moving_avg import plot_daily_injection_moving_avg, plot_daily_pressure_moving_avg
+from plot_moving_avg import plot_daily_injection_moving_avg, plot_daily_pressure_moving_avg, plot_calculated_bottomhole_pressure_moving_avg
 
 # GLOBAL VARIABLES AND FILE PATHS
 STRAWN_FORMATION_DATA_FILE_PATH = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
@@ -1169,11 +1171,11 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     print(f"Daily injection plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
-def create_well_histogram_per_api(cleaned_well_data_df, range_km, output_directory=None):
+def create_well_histogram_per_api(cleaned_well_data_df, range_km, earthquake_info, output_directory=None):
     # Convert 'Date of Injection' to datetime
     cleaned_well_data_df['Date of Injection'] = pd.to_datetime(cleaned_well_data_df['Date of Injection'],
                                                                errors='coerce')
-
+    pd.set_option('display.max_columns', None)  # This ensures all columns are printed
     # Define the conditions and categories
     conditions = [
         (cleaned_well_data_df['Injection Pressure Average PSIG'].notna() & (
@@ -1201,6 +1203,9 @@ def create_well_histogram_per_api(cleaned_well_data_df, range_km, output_directo
         # Ensure chronological order within each 'Month-Year' by sorting by 'Date of Injection'
         group = group.sort_values(by='Date of Injection')
 
+        # Retrieve the distance from the 'Distance from Earthquake (km)' column
+        distance_from_earthquake = group['Distance from Earthquake (km)'].iloc[0]
+
         # Count the occurrences in each category for each date within each month-year
         category_counts = group.groupby(['Month-Year', 'Date of Injection', 'Category']).size().unstack(
             fill_value=0).reindex(columns=categories, fill_value=0)
@@ -1224,7 +1229,7 @@ def create_well_histogram_per_api(cleaned_well_data_df, range_km, output_directo
         # Plot the histogram
         fig, ax = plt.subplots(figsize=(12, 6))
         monthly_totals.plot(kind='bar', stacked=True, ax=ax)
-        ax.set_title(f'Well Data for API #{api_number} (Total Records: {total_sum}) ({range_km} KM Range)')
+        ax.set_title(f'Well Data for API #{api_number} ({distance_from_earthquake} KM away from {earthquake_info["Event ID"]}) (Total Records: {total_sum})')
         ax.set_xlabel('Month-Year')
         ax.set_ylabel('Days')
         ax.legend(legend_labels, title='Category', loc='upper right')
@@ -1281,7 +1286,7 @@ if len(sys.argv) > 1:
         output_file_path = os.path.join(output_dir, "b3_cleaned.csv")
         prepared_b3df.to_csv(output_file_path, index=False)
 
-        b3_data_quality_histogram(prepared_b3df, range_km, output_dir)
+        b3_data_quality_histogram(prepared_b3df, range_km, earthquake_info, output_dir)
         plot_b3_bhp(prepared_b3df, earthquake_info, output_dir, range_km)
         plot_b3_ijv(prepared_b3df, earthquake_info, output_dir, range_km)
         create_indiv_subplot_dirs(base_dir=output_dir)
@@ -1333,7 +1338,7 @@ if len(sys.argv) > 1:
         listed_pressure_data, distance_data3 = prepare_listed_pressure_data_from_df(df=cleaned_well_data_df)
         plot_daily_pressure(listed_pressure_data, distance_data3, earthquake_info, output_dir, range_km)
 
-        histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, output_dir)
+        histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, earthquake_info, output_dir)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 
         finalized_df.to_csv(output_file2, index=False)
@@ -1348,6 +1353,7 @@ if len(sys.argv) > 1:
 
         plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthquake_info, output_dir, range_km)
         plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir, range_km)
+        plot_calculated_bottomhole_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir, range_km, finalized_df)
 
         quit()
     else:
