@@ -244,7 +244,7 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
         for i in range(1, len(dates)):
             if (dates[i] - last_date).days > 7:
                 # Plot the current segment if the gap is too large
-                ax1.plot(segment_dates, segment_injections, color=darker_color_map_shallow[api_number], linewidth=1.5,
+                ax1.plot(segment_dates, segment_injections, color=darker_color_map_shallow[api_number], linewidth=2,
                          linestyle='-')
                 # Start a new segment
                 segment_dates = []
@@ -257,7 +257,7 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
 
         # Plot the last segment
         if segment_dates:
-            ax1.plot(segment_dates, segment_injections, color=darker_color_map_shallow[api_number], linewidth=1.5,
+            ax1.plot(segment_dates, segment_injections, color=darker_color_map_shallow[api_number], linewidth=2,
                      linestyle='-')
 
         all_shallow_median_injections.extend(injections)
@@ -344,11 +344,11 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
                     # Step 3: Process the current segment using Savitzky-Golay and plot it
                     if len(segment_injections) >= 7:  # Ensure enough points for the Savitzky-Golay filter
                         smoothed_segment = savgol_filter(segment_injections, window_length=7, polyorder=2)
-                        ax2.plot(segment_dates, smoothed_segment, color=darker_color_map_deep[api_number], linewidth=1.5,
+                        ax2.plot(segment_dates, smoothed_segment, color=darker_color_map_deep[api_number], linewidth=2,
                                  linestyle='-')
                     else:
                         ax2.plot(segment_dates, segment_injections, color=darker_color_map_deep[api_number],
-                                 linewidth=1.5, linestyle='-')
+                                 linewidth=2, linestyle='-')
 
                     # Start a new segment
                     segment_dates = [cleaned_dates[i]]
@@ -358,10 +358,10 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
         if segment_dates:
             if len(segment_injections) >= 7:
                 smoothed_segment = savgol_filter(segment_injections, window_length=7, polyorder=3)
-                ax2.plot(segment_dates, smoothed_segment, color=darker_color_map_deep[api_number], linewidth=1.5,
+                ax2.plot(segment_dates, smoothed_segment, color=darker_color_map_deep[api_number], linewidth=2,
                          linestyle='-')
             else:
-                ax2.plot(segment_dates, segment_injections, color=darker_color_map_deep[api_number], linewidth=1.5,
+                ax2.plot(segment_dates, segment_injections, color=darker_color_map_deep[api_number], linewidth=2,
                          linestyle='-')
 
         all_deep_median_injections.extend(injections)
@@ -546,14 +546,14 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
             else:
                 if len(segment_pressures) >= 7:
                     smoothed_segment = savgol_filter(segment_pressures, window_length=7, polyorder=2)
-                    ax1.plot(segment_dates, smoothed_segment, color=darker_color_map_shallow[api_number], linewidth=1.5)
+                    ax1.plot(segment_dates, smoothed_segment, color=darker_color_map_shallow[api_number], linewidth=2)
                 segment_dates, segment_pressures = [dates[i]], [moving_average[i]]
         if segment_dates:
             if len(segment_pressures) >= 7:
                 smoothed_segment = savgol_filter(segment_pressures, window_length=7, polyorder=2)
-                ax1.plot(segment_dates, smoothed_segment, color=darker_color_map_shallow[api_number], linewidth=1.5)
+                ax1.plot(segment_dates, smoothed_segment, color=darker_color_map_shallow[api_number], linewidth=2)
             else:
-                ax1.plot(segment_dates, segment_pressures, color=darker_color_map_shallow[api_number], linewidth=1.5)
+                ax1.plot(segment_dates, segment_pressures, color=darker_color_map_shallow[api_number], linewidth=2)
 
         all_shallow_median_bps.extend(pressures)
 
@@ -643,14 +643,14 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
             else:
                 if len(segment_pressures) >= 7:
                     smoothed_segment = savgol_filter(segment_pressures, window_length=7, polyorder=2)
-                    ax2.plot(segment_dates, smoothed_segment, color=darker_color_map_deep[api_number], linewidth=1.5)
+                    ax2.plot(segment_dates, smoothed_segment, color=darker_color_map_deep[api_number], linewidth=2)
                 segment_dates, segment_pressures = [dates[i]], [moving_average[i]]
         if segment_dates:
             if len(segment_pressures) >= 7:
                 smoothed_segment = savgol_filter(segment_pressures, window_length=7, polyorder=2)
-                ax2.plot(segment_dates, smoothed_segment, color=darker_color_map_deep[api_number], linewidth=1.5)
+                ax2.plot(segment_dates, smoothed_segment, color=darker_color_map_deep[api_number], linewidth=2)
             else:
-                ax2.plot(segment_dates, segment_pressures, color=darker_color_map_deep[api_number], linewidth=1.5)
+                ax2.plot(segment_dates, segment_pressures, color=darker_color_map_deep[api_number], linewidth=2)
 
         all_deep_median_bps.extend(pressures)
 
@@ -706,3 +706,347 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
     plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
     print(
         f"Daily Avg PSIG Pressure plots with Moving Avg for earthquake: {earthquake_info['Event ID']} were successfully created.")
+
+
+def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, distance_data, earthquake_info, output_directory, range_km, cleaned_well_data_df):
+    # Create a defaultdict to store the total pressure for each date
+    total_pressure_by_date = defaultdict(float)
+    deep_pressure_data = defaultdict(list)
+    shallow_pressure_data = defaultdict(list)
+    all_api_nums = []  # list to store all the api numbers for plot label
+    origin_date_str = earthquake_info['Origin Date']  # Use earthquake origin date directly
+    origin_time = earthquake_info['Origin Time']
+    local_magnitude = earthquake_info['Local Magnitude']
+    origin_date = datetime.datetime.strptime(origin_date_str, '%Y-%m-%d')
+    origin_date_num = mdates.date2num(origin_date)
+    shallow_apis = []
+    deep_apis = []
+
+    if not calculated_bottomhole_pressure_data:
+        print("No data to plot.")
+        return
+
+    # Check if calculated_bottomhole_pressure_data is a dictionary
+    if not isinstance(calculated_bottomhole_pressure_data, dict):
+        print("Invalid data format. Expected a dictionary.")
+        return
+
+    for api_number, api_data in calculated_bottomhole_pressure_data.items():
+        # Flatten the dictionary keys into separate lists
+        try:
+            unconverted_tuple_dates, pressures = zip(*api_data.items())
+            all_api_nums.append(api_number)
+        except (TypeError, ValueError):
+            print(f"Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
+            continue
+
+        # Use unconverted_tuple_dates directly since it's already a tuple
+        for date, total_pressure in zip(unconverted_tuple_dates, pressures):
+            if date == 'TYPE':  # Skip 'TYPE' entries
+                continue
+            total_pressure_by_date[date] += total_pressure
+
+    dates, total_pressure_values = zip(*total_pressure_by_date.items())
+
+    # Convert all date strings to datetime objects
+    dates = [datetime.datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S') if isinstance(date_str, str) else date_str for
+             date_str in dates]
+
+    # Sort the dates and corresponding pressures by date
+    sorted_data = sorted(zip(dates, total_pressure_values), key=lambda x: x[0])
+
+    # Unpack the sorted data
+    sorted_dates, sorted_total_pressure_values = zip(*sorted_data)
+
+    # Convert datetime objects to strings
+    date_strings = [date.strftime('%Y-%m-%d') for date in sorted_dates]
+
+    for api_number, data in calculated_bottomhole_pressure_data.items():
+        if data['TYPE'] == 1:
+            for date, pressure in data.items():
+                if date != 'TYPE':
+                    deep_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
+                    append_if_unique(api_number, deep_apis)
+        elif data['TYPE'] == 0:
+            for date, pressure in data.items():
+                if date != 'TYPE':
+                    shallow_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
+                    append_if_unique(api_number, shallow_apis)
+
+    # Combine all API numbers from shallow and deep data
+    all_api_numbers = list(set(all_api_nums))
+    all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
+    sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
+
+    # Filter sorted_all_distances for shallow and deep, making sure to keep only unique API numbers
+    shallow_distances = [(api, distance) for api, distance in sorted_all_distances if api in shallow_apis]
+    deep_distances = [(api, distance) for api, distance in sorted_all_distances if api in deep_apis]
+
+    # Generate distinct colors using tab20
+    shallow_colors = generate_distinct_colors(len(shallow_apis), colormap="tab20")
+    deep_colors = generate_distinct_colors(len(deep_apis), colormap="tab20")
+
+    # Brighten the colors for shallow and deep
+    brightened_shallow_colors = adjust_brightness(shallow_colors, adjustment_factor=1.2)
+    brightened_deep_colors = adjust_brightness(deep_colors, adjustment_factor=1.1)
+
+    # Darken the colors for additional options
+    darker_shallow_colors = adjust_brightness(shallow_colors, adjustment_factor=0.80)
+    darker_deep_colors = adjust_brightness(deep_colors, adjustment_factor=0.90)
+
+    # Create color maps for API numbers
+    color_map_shallow = {api_number: color for (api_number, _), color in
+                         zip(shallow_distances, brightened_shallow_colors)}
+    color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, brightened_deep_colors)}
+
+    # Darkened color maps for additional contrast
+    darker_color_map_shallow = {api_number: color for (api_number, _), color in
+                                zip(shallow_distances, darker_shallow_colors)}
+    darker_color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, darker_deep_colors)}
+
+    fig, axes = plt.subplots(2, 1, figsize=(28, 20))  # Create a 2x1 grid for shallow and deep plots
+
+    # Plot shallow well data
+    ax1 = axes[0]
+    api_legend_map = {}  # Dictionary to map API numbers to legend labels
+    api_median_pressure_shallow = {}  # Dictionary to store median pressure for each API number over a 3-day span
+
+    for date, pressure_points in shallow_pressure_data.items():
+        api_pressure_values = {}
+        for api_number, pressure in pressure_points:
+            if api_number not in api_pressure_values:
+                api_pressure_values[api_number] = []
+            api_pressure_values[api_number].append(pressure)
+
+        for api_number, pressure_values in api_pressure_values.items():
+            median_pressure = np.median(pressure_values)
+            if api_number not in api_median_pressure_shallow:
+                api_median_pressure_shallow[api_number] = []
+            api_median_pressure_shallow[api_number].append((date, median_pressure))
+
+    all_shallow_median_bps = []
+
+    for api_number, median_pressure_points in api_median_pressure_shallow.items():
+        if api_number not in api_legend_map:
+            distance = distance_data.get(api_number, 'N/A')
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
+        dates, pressures = zip(*median_pressure_points)
+
+        # Plot the shallow well data points
+        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2,
+                 alpha=0.3)
+
+        # Separate the data points for the category 'Only Volume Injected Provided'
+        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
+                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
+        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
+        category_pressures = category_data['Bottomhole Pressure']
+
+        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
+        ax1.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
+                 markeredgecolor='black', markeredgewidth=0.5, markersize=2.5, alpha=0.3)
+
+        # Calculate and plot moving average with segmentation
+        moving_average = pd.Series(pressures).rolling(window=10, min_periods=1).mean()
+        segment_dates, segment_pressures = [], []
+
+        for i in range(len(dates)):
+            if i == 0 or (dates[i] - dates[i - 1]).days <= 3:
+                segment_dates.append(dates[i])
+                segment_pressures.append(moving_average[i])
+            else:
+                # Smooth and plot the current segment if it meets length criteria
+                if len(segment_pressures) >= 7:
+                    smoothed_segment = savgol_filter(segment_pressures, window_length=7, polyorder=2)
+                    ax1.plot(segment_dates, smoothed_segment, color=darker_color_map_shallow[api_number], linewidth=2)
+                # Start a new segment
+                segment_dates, segment_pressures = [dates[i]], [moving_average[i]]
+
+        # Plot the last segment, if any
+        if segment_dates:
+            if len(segment_pressures) >= 7:
+                smoothed_segment = savgol_filter(segment_pressures, window_length=7, polyorder=2)
+                ax1.plot(segment_dates, smoothed_segment, color=darker_color_map_shallow[api_number], linewidth=2)
+            else:
+                ax1.plot(segment_dates, segment_pressures, color=darker_color_map_shallow[api_number], linewidth=2)
+
+        # Extend the list of all shallow median pressures for further processing
+        all_shallow_median_bps.extend(pressures)
+
+    legend_handles = []
+    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
+    for legend_label, _, color in sorted_legend_items:
+        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+
+    x_min, x_max = ax1.get_xlim()
+    if x_min <= origin_date_num <= x_max:
+        ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                              f'\nOrigin Time: {origin_time}'
+                                                                              f'\nOrigin Date: {origin_date_str}'
+                                                                              f'\nLocal Magnitude: {local_magnitude}'
+                                                                              f'\nRange: {range_km} km'))
+
+    ax1.set_title(f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
+    ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
+    ax1.set_xlabel('Date')
+    ax1.grid(True)
+    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
+    ax1.tick_params(axis='x', rotation=45)
+
+    # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
+    if all_shallow_median_bps:
+        # print(f"shallow median bps: {all_shallow_median_bps}")
+
+        # Ensure all values in the list are finite numbers
+        valid_bps = [bp for bp in all_shallow_median_bps if np.isfinite(bp)]
+
+        if not valid_bps:
+            print("No valid data points found in all_shallow_median_bps.")
+        else:
+            # Calculate percentiles only with valid data points
+            shallow_min, shallow_max = np.percentile(valid_bps, [5, 95])
+            # print(f"shallow_min: {shallow_min}, shallow_max: {shallow_max}")
+
+            # Validate the calculated percentiles
+            if not np.isfinite(shallow_min) or not np.isfinite(shallow_max):
+                print(f"Invalid axis limits: shallow_min={shallow_min}, shallow_max={shallow_max}")
+            else:
+                ax1.set_ylim(shallow_min, shallow_max)
+    else:
+        print("No data points available to calculate shallow well pressure limits.")
+
+    # Set major locator and formatter to display ticks for each month
+    ax1.xaxis.set_major_locator(mdates.MonthLocator())
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    # Plot deep well data
+    ax2 = axes[1]
+    api_legend_map = {}  # Reset
+    api_median_pressure_deep = {}
+
+    for date, pressure_points in deep_pressure_data.items():
+        api_pressure_values = {}
+        for api_number, pressure in pressure_points:
+            if api_number not in api_pressure_values:
+                api_pressure_values[api_number] = []
+            api_pressure_values[api_number].append(pressure)
+
+        for api_number, pressure_values in api_pressure_values.items():
+            median_pressure = np.median(pressure_values)
+            if api_number not in api_median_pressure_deep:
+                api_median_pressure_deep[api_number] = []
+            api_median_pressure_deep[api_number].append((date, median_pressure))
+
+    all_deep_median_bps = []
+
+    for api_number, median_pressure_points in api_median_pressure_deep.items():
+        if api_number not in api_legend_map:
+            distance = distance_data.get(api_number, 'N/A')
+            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
+        dates, pressures = zip(*median_pressure_points)
+
+        # Plot the deep well data points
+        ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2, alpha=0.3)
+
+        # Separate the data points for the category 'Only Volume Injected Provided'
+        category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
+                                             (cleaned_well_data_df['Category'] == 'Only Volume Injected Provided')]
+        category_dates = pd.to_datetime(category_data['Date of Injection'], errors='coerce')
+        category_pressures = category_data['Bottomhole Pressure']
+
+        # Plot the data points for the category 'Only Volume Injected Provided' with an outline
+        ax2.plot(category_dates, category_pressures, marker='o', linestyle='', color='none',
+                 markeredgecolor='black', markeredgewidth=0.5, markersize=2.5, alpha=0.3)
+
+        # Calculate and plot moving average with segmentation
+        moving_average = pd.Series(pressures).rolling(window=10, min_periods=1).mean()
+        segment_dates, segment_pressures = [], []
+
+        for i in range(len(dates)):
+            # Collect consecutive dates or start a new segment if there's a gap
+            if i == 0 or (dates[i] - dates[i - 1]).days == 1:
+                segment_dates.append(dates[i])
+                segment_pressures.append(moving_average[i])
+            else:
+                # Plot the smoothed segment if long enough
+                if len(segment_pressures) >= 7:
+                    smoothed_segment = savgol_filter(segment_pressures, window_length=7, polyorder=2)
+                    ax2.plot(segment_dates, smoothed_segment, color=darker_color_map_deep[api_number], linewidth=2)
+                # Start a new segment
+                segment_dates, segment_pressures = [dates[i]], [moving_average[i]]
+
+        # Plot the last segment, if any
+        if segment_dates:
+            if len(segment_pressures) >= 7:
+                smoothed_segment = savgol_filter(segment_pressures, window_length=7, polyorder=2)
+                ax2.plot(segment_dates, smoothed_segment, color=darker_color_map_deep[api_number], linewidth=2)
+            else:
+                ax2.plot(segment_dates, segment_pressures, color=darker_color_map_deep[api_number], linewidth=2)
+
+        # Extend the list of all deep median pressures for further processing
+        all_deep_median_bps.extend(pressures)
+
+    legend_handles = []
+    sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
+    for legend_label, _, color in sorted_legend_items:
+        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+
+    x_min, x_max = ax2.get_xlim()
+    if x_min <= origin_date_num <= x_max:
+        ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+                                                                              f'\nOrigin Time: {origin_time}'
+                                                                              f'\nOrigin Date: {origin_date_str}'
+                                                                              f'\nLocal Magnitude: {local_magnitude}'
+                                                                              f'\nRange: {range_km} km'))
+
+    ax2.set_title(f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
+    ax2.set_xlabel('Date')
+    ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
+    ax2.grid(True)
+    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
+    ax2.tick_params(axis='x', rotation=45)
+
+    # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
+    if all_deep_median_bps:
+        # Convert to a numpy array if it's not already
+        all_deep_median_bps = np.array(all_deep_median_bps)
+
+        # Remove NaN values
+        filtered_data = all_deep_median_bps[~np.isnan(all_deep_median_bps)]
+
+        # Check if there is any data left after filtering
+        if filtered_data.size > 0:
+            # Calculate the 5th and 95th percentiles
+            deep_min, deep_max = np.percentile(filtered_data, [5, 95])
+            ax2.set_ylim(deep_min, deep_max)
+        else:
+            print("Warning: No valid data available after removing NaNs. Cannot set axis limits.")
+    else:
+        print("No deep median bps data available.")
+
+    # Set major locator and formatter to display ticks for each month
+    ax2.xaxis.set_major_locator(mdates.MonthLocator())
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    # Save the plot as an image file
+    output_filename = os.path.join(output_directory,
+                                   f'event_{earthquake_info["Event ID"]}_calc_bottomhole_pressure_moving_avg_range{range_km}km.png')
+    plt.tight_layout()
+    plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
+    print(f"Daily bottomhole plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
+
+
+# Load data and generate plot
+data = pd.read_csv('/home/skevofilaxc/Documents/earthquake_plots/oizv/ivrt_finalized_well_data.csv')
+earthquake_info = {'Event ID': 'texnet2024oizv', 'Latitude': 32.76580810546875, 'Longitude': -100.65941787347559,
+                   'Origin Date': '2024-07-23', 'Origin Time': '03:38:42', 'Local Magnitude': 4.9}
+output_directory = "/home/skevofilaxc/Documents/earthquake_plots/oizv/test"
+
+daily_injection_data, distance_data = prepare_daily_injection_data_from_df(data)
+total_pressure_data, distance_data = prepare_total_pressure_data_from_df(data)
+
+#plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthquake_info, output_directory, range_km=25)
+#plot_daily_pressure_moving_avg(total_pressure_data, distance_data, earthquake_info, output_directory, range_km=25)
+plot_calculated_bottomhole_pressure(total_pressure_data, distance_data, earthquake_info, output_directory, range_km=25, cleaned_well_data_df=data)

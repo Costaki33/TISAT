@@ -289,8 +289,8 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
     return cleaned_well_data_df
 
 
-def prepare_total_pressure_data_from_df(finalized_df):
-    total_pressure_data = defaultdict(dict)
+def prepare_calculated_bottomhole_pressure_data_from_df(finalized_df):
+    calculated_bottomhole_pressure_data = defaultdict(dict)
     distance_data = {}
 
     for index, row in finalized_df.iterrows():
@@ -304,13 +304,13 @@ def prepare_total_pressure_data_from_df(finalized_df):
         if isinstance(date_of_injection, str):
             date_of_injection = datetime.datetime.strptime(date_of_injection, '%Y-%m-%d')
 
-        if api_number not in total_pressure_data:
-            total_pressure_data[api_number] = {'TYPE': well_type}
+        if api_number not in calculated_bottomhole_pressure_data:
+            calculated_bottomhole_pressure_data[api_number] = {'TYPE': well_type}
             distance_data[api_number] = distance  # Store the distance for each API number
 
-        total_pressure_data[api_number][date_of_injection] = bottomhole_pressure
+        calculated_bottomhole_pressure_data[api_number][date_of_injection] = bottomhole_pressure
 
-    return total_pressure_data, distance_data
+    return calculated_bottomhole_pressure_data, distance_data
 
 
 def prepare_listed_pressure_data_from_df(df):
@@ -364,7 +364,7 @@ def prepare_daily_injection_data_from_df(finalized_df):
     return daily_injection_data, distance_data
 
 
-def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_directory, range_km):
+def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, distance_data, earthquake_info, output_directory, range_km):
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
     deep_pressure_data = defaultdict(list)
@@ -378,16 +378,16 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     shallow_apis = []
     deep_apis = []
 
-    if not total_pressure_data:
+    if not calculated_bottomhole_pressure_data:
         print("No data to plot.")
         return
 
-    # Check if total_pressure_data is a dictionary
-    if not isinstance(total_pressure_data, dict):
+    # Check if calculated_bottomhole_pressure_data is a dictionary
+    if not isinstance(calculated_bottomhole_pressure_data, dict):
         print("Invalid data format. Expected a dictionary.")
         return
 
-    for api_number, api_data in total_pressure_data.items():
+    for api_number, api_data in calculated_bottomhole_pressure_data.items():
         # Flatten the dictionary keys into separate lists
         try:
             unconverted_tuple_dates, pressures = zip(*api_data.items())
@@ -417,7 +417,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     # Convert datetime objects to strings
     date_strings = [date.strftime('%Y-%m-%d') for date in sorted_dates]
 
-    for api_number, data in total_pressure_data.items():
+    for api_number, data in calculated_bottomhole_pressure_data.items():
         if data['TYPE'] == 1:
             for date, pressure in data.items():
                 if date != 'TYPE':
@@ -644,7 +644,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
 
     # Save the plot as an image file
     output_filename = os.path.join(output_directory,
-                                   f'event_{earthquake_info["Event ID"]}_bottomhole_pressure_range{range_km}km.png')
+                                   f'event_{earthquake_info["Event ID"]}_calc_bottomhole_pressure_range{range_km}km.png')
     plt.tight_layout()
     plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
     print(f"Daily bottomhole plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
@@ -668,7 +668,7 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
         print("No data to plot.")
         return
 
-    # Check if total_pressure_data is a dictionary
+    # Check if calculated_bottomhole_pressure_data is a dictionary
     if not isinstance(listed_pressure_data, dict):
         print("Invalid data format. Expected a dictionary.")
         return
@@ -1338,10 +1338,10 @@ if len(sys.argv) > 1:
 
         finalized_df.to_csv(output_file2, index=False)
 
-        total_pressure_data, distance_data = prepare_total_pressure_data_from_df(finalized_df)
+        calculated_bottomhole_pressure_data, distance_data = prepare_calculated_bottomhole_pressure_data_from_df(finalized_df)
         daily_injection_data, distance_data2 = prepare_daily_injection_data_from_df(finalized_df)
 
-        plot_total_pressure(total_pressure_data, distance_data, earthquake_info, output_dir, range_km)
+        plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, distance_data, earthquake_info, output_dir, range_km)
         plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, output_dir, range_km)
         create_indiv_subplot_dirs(base_dir=output_dir)
         gather_well_data(base_path=output_dir, csv_file=output_file, earthquake_info=earthquake_info)
