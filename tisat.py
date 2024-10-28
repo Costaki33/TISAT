@@ -3,7 +3,6 @@ import os
 import sys
 import csv
 import datetime
-import colorsys
 import warnings
 import webbrowser
 import numpy as np
@@ -12,14 +11,13 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from collections import defaultdict
 from matplotlib.lines import Line2D
-from sympy.abc import alpha
-
 from friction_loss_calc import friction_loss
 from individual_plots import gather_well_data
 from pandas.errors import SettingWithCopyWarning
 from subplot_dirs import create_indiv_subplot_dirs
 from well_data_query import closest_wells_to_earthquake
 from read_b3 import clean_csv, b3_data_quality_histogram, calculate_b3_total_bh_pressure, plot_b3_bhp, plot_b3_ijv
+from plot_moving_avg import plot_daily_injection_moving_avg, plot_daily_pressure_moving_avg
 
 # GLOBAL VARIABLES AND FILE PATHS
 STRAWN_FORMATION_DATA_FILE_PATH = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
@@ -138,15 +136,25 @@ def is_within_cutoff(injection_date, earthquake_date, cutoff_before_earthquake):
         return False
 
 
-def generate_distinct_colors(num_colors, colormap="tab20"):
+def generate_distinct_colors(num_colors, colormap="tab20", exclude_indices=[4, 5]):
     """
-    Generate a list of distinct colors using a specified matplotlib colormap.
+    Generate a list of distinct colors using a specified matplotlib colormap, excluding unwanted colors.
+    Parameters:
+    - num_colors: Number of distinct colors to generate.
+    - colormap: The name of the colormap to use.
+    - exclude_indices: List of indices to exclude from the colormap.
     """
     cmap = plt.get_cmap(colormap)
-    # Create an evenly spaced list of colors from the colormap
-    colors = [cmap(i / max(1, num_colors - 1)) for i in range(num_colors)]
-    return colors
+    total_colors = cmap.N  # Number of colors in the colormap
 
+    # Calculate step size based on the required number of colors, skipping excluded indices
+    indices = [i for i in range(total_colors) if i not in exclude_indices]
+    step = max(1, len(indices) // num_colors)
+    selected_indices = indices[::step][:num_colors]
+
+    # Retrieve colors from selected indices
+    colors = [cmap(i / (total_colors - 1)) for i in selected_indices]
+    return colors
 
 def adjust_brightness(colors, adjustment_factor=1.2):
     """
@@ -461,7 +469,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
                          zip(shallow_distances, brightened_shallow_colors)}
     color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, brightened_deep_colors)}
 
-    fig, axes = plt.subplots(2, 1, figsize=(20, 12))  # Create a 2x1 grid for shallow and deep plots
+    fig, axes = plt.subplots(2, 1, figsize=(28, 20))  # Create a 2x1 grid for shallow and deep plots
 
     # Plot shallow well data
     ax1 = axes[0]
@@ -518,8 +526,9 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
-    ax1.set_title(f'event_{earthquake_info["Event ID"]} Bottomhole Pressure Data - Shallow Well ({range_km} KM Range)')
+    ax1.set_title(f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
     ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
+    ax1.set_xlabel('Date')
     ax1.grid(True)
     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
     ax1.tick_params(axis='x', rotation=45)
@@ -604,7 +613,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
-    ax2.set_title(f'event_{earthquake_info["Event ID"]} Bottomhole Pressure Data - Deep Well ({range_km} KM Range)')
+    ax2.set_title(f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
     ax2.set_xlabel('Date')
     ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
     ax2.grid(True)
@@ -641,8 +650,7 @@ def plot_total_pressure(total_pressure_data, distance_data, earthquake_info, out
     print(f"Daily bottomhole plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
-def create_pressure_txt(listed_pressure_data, distance_data, earthquake_info, output_directory, range_km,
-                        cleaned_well_data_df):
+def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, output_directory, range_km):
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
     deep_pressure_data = defaultdict(list)
@@ -747,7 +755,7 @@ def create_pressure_txt(listed_pressure_data, distance_data, earthquake_info, ou
                          zip(shallow_distances, brightened_shallow_colors)}
     color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, brightened_deep_colors)}
 
-    fig, axes = plt.subplots(2, 1, figsize=(20, 12))  # Create a 2x1 grid for shallow and deep plots
+    fig, axes = plt.subplots(2, 1, figsize=(28, 20))  # Create a 2x1 grid for shallow and deep plots
 
     # Plot shallow well data
     ax1 = axes[0]
@@ -804,8 +812,9 @@ def create_pressure_txt(listed_pressure_data, distance_data, earthquake_info, ou
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
-    ax1.set_title(f'event_{earthquake_info["Event ID"]} Listed Pressure Data - Shallow Well ({range_km} KM Range)')
-    ax1.set_ylabel('Listed Average Pressure (PSIG)')
+    ax1.set_title(f'Reported Daily Avg Pressures Used with Moving Avg for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
+    ax1.set_xlabel('Date')
+    ax1.set_ylabel('Reported Average Pressure (PSIG)')
     ax1.grid(True)
     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
     ax1.tick_params(axis='x', rotation=45)
@@ -890,9 +899,9 @@ def create_pressure_txt(listed_pressure_data, distance_data, earthquake_info, ou
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
-    ax2.set_title(f'event_{earthquake_info["Event ID"]} Listed Pressure Data - Deep Well ({range_km} KM Range)')
+    ax2.set_title(f'Reported Daily Avg Pressures Used with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
     ax2.set_xlabel('Date')
-    ax2.set_ylabel('Listed Average Pressure (PSIG)')
+    ax2.set_ylabel('Reported Average Pressure (PSIG)')
     ax2.grid(True)
     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
     ax2.tick_params(axis='x', rotation=45)
@@ -923,6 +932,7 @@ def create_pressure_txt(listed_pressure_data, distance_data, earthquake_info, ou
     output_filename = os.path.join(output_directory,
                                    f'event_{earthquake_info["Event ID"]}_listed_avg_pressure_range{range_km}km.png')
     plt.tight_layout()
+    plt.subplots_adjust(hspace=0.2)
     plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
     print(f"Daily AVG PSIG Pressure plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
@@ -1034,7 +1044,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
 
 
     # Create subplots
-    fig, axes = plt.subplots(2, 1, figsize=(20, 12))
+    fig, axes = plt.subplots(2, 1, figsize=(28, 20))
 
     # Plot shallow well data
     ax1 = axes[0]
@@ -1078,8 +1088,8 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
-    ax1.set_title(f'event_{earthquake_info["Event ID"]} Daily Injection Data - Shallow Well ({range_km} KM Range)')
-    ax1.set_ylabel('Daily Injection (BBLs)')
+    ax1.set_title(f'Reported Daily Injected Volumes for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
+    ax1.set_ylabel('Reported Injected Volumes (BBLs)')
     ax1.set_xlabel('Date')
     ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
@@ -1133,8 +1143,8 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
-    ax2.set_title(f'event_{earthquake_info["Event ID"]} Daily Injection Data - Deep Well ({range_km} KM Range)')
-    ax2.set_ylabel('Daily Injection (BBLs)')
+    ax2.set_title(f'Reported Daily Injected Volumes with Moving Avg for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
+    ax2.set_ylabel('Reported Injected Volumes (BBLs)')
     ax2.set_xlabel('Date')
     ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
@@ -1148,7 +1158,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
 
     # Adjust the layout
     plt.tight_layout()
-    plt.subplots_adjust(hspace=0.3)
+    plt.subplots_adjust(hspace=0.2)
 
     # Save the plot to a file
     output_file_path = os.path.join(output_directory,
@@ -1321,8 +1331,7 @@ if len(sys.argv) > 1:
         cleaned_well_data_df.to_csv(output_file, index=False)
 
         listed_pressure_data, distance_data3 = prepare_listed_pressure_data_from_df(df=cleaned_well_data_df)
-        create_pressure_txt(listed_pressure_data, distance_data3, earthquake_info, output_dir, range_km,
-                            cleaned_well_data_df=cleaned_well_data_df)
+        plot_daily_pressure(listed_pressure_data, distance_data3, earthquake_info, output_dir, range_km)
 
         histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, output_dir)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
@@ -1336,6 +1345,9 @@ if len(sys.argv) > 1:
         plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, output_dir, range_km)
         create_indiv_subplot_dirs(base_dir=output_dir)
         gather_well_data(base_path=output_dir, csv_file=output_file, earthquake_info=earthquake_info)
+
+        plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthquake_info, output_dir, range_km)
+        plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir, range_km)
 
         quit()
     else:
