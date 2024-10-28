@@ -270,17 +270,23 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
     x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
     ax1.set_title(
-        f'Reported Daily Injected Volumes with Moving Avg for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax1.set_ylabel('Reported Injected Volumes (BBLs)')
-    ax1.set_xlabel('Date')
-    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
+        f'Reported Daily Injected Volumes with Moving Avg for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_ylabel('Reported Injected Volumes (BBLs)', fontsize=12, fontweight='bold')
+    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
+    legend = ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Shallow Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend.set_title("Shallow Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax1.tick_params(axis='x', length=10, width=2, rotation=45)
@@ -374,17 +380,23 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
     x_min, x_max = ax2.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
     ax2.set_title(
-        f'Reported Daily Injected Volumes with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax2.set_ylabel('Reported Daily Injected Volumes (BBLs)')
-    ax2.set_xlabel('Date')
-    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
+        f'Reported Daily Injected Volumes with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('Reported Daily Injected Volumes (BBLs)', fontsize=12, fontweight='bold')
+    ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
+    legend2 = ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Deep Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend2.set_title("Deep Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax2.tick_params(axis='x', length=10, width=2, rotation=45)
@@ -565,18 +577,25 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
     x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
     ax1.set_title(
-        f'Reported Daily Avg Pressures Used with Moving Avg for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax1.set_ylabel('Reported Average Pressure (PSIG)')
-    ax1.set_xlabel('Date')
+        f'Reported Daily Avg Pressures Used with Moving Avg for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_ylabel('Reported Average Pressure (PSIG)', fontsize=12, fontweight='bold')
+    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax1.grid(True)
-    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
+    legend = ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Shallow Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend.set_title("Shallow Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
+
     ax1.tick_params(axis='x', length=10, width=2, rotation=45)
 
     # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
@@ -662,17 +681,23 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
     x_min, x_max = ax2.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
-    ax2.set_title(f'Reported Daily Avg Pressures Used with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax2.set_xlabel('Date')
-    ax2.set_ylabel('Reported Average Pressure (PSIG)')
+    ax2.set_title(f'Reported Daily Avg Pressures Used with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Reported Average Pressure (PSIG)', fontsize=12, fontweight='bold')
     ax2.grid(True)
-    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
+    legend2 = ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Deep Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend2.set_title("Deep Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax2.tick_params(axis='x', length=10, width=2, rotation=45)
 
     # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
@@ -881,17 +906,24 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
     x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
-    ax1.set_title(f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
-    ax1.set_xlabel('Date')
+    ax1.set_title(f'Calculated Bottomhole Pressure with Moving Avg for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_ylabel('Total Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')  # Increase font size and bold
+    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')  # Increase font size and bold
+
     ax1.grid(True)
-    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
+    legend = ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Shallow Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend.set_title("Shallow Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax1.tick_params(axis='x', rotation=45)
 
     # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
@@ -995,17 +1027,23 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
     x_min, x_max = ax2.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
+    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
                                                                               f'\nLocal Magnitude: {local_magnitude}'
                                                                               f'\nRange: {range_km} km'))
 
-    ax2.set_title(f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax2.set_xlabel('Date')
-    ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
+    ax2.set_title(f'Calculated Bottomhole Pressure with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_xlabel('Date', fontsize=12, fontweight='bold')  # Increase font size and bold
+    ax2.set_ylabel('Total Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
     ax2.grid(True)
-    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
+    legend2 = ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Deep Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend2.set_title("Deep Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax2.tick_params(axis='x', rotation=45)
 
     # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
@@ -1033,7 +1071,9 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
     # Save the plot as an image file
     output_filename = os.path.join(output_directory,
                                    f'event_{earthquake_info["Event ID"]}_calc_bottomhole_pressure_moving_avg_range{range_km}km.png')
+
     plt.tight_layout()
+    plt.subplots_adjust(hspace=0.2)
     plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
     print(f"Daily bottomhole plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 

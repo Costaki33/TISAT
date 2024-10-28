@@ -18,8 +18,10 @@ from individual_plots import gather_well_data
 from pandas.errors import SettingWithCopyWarning
 from subplot_dirs import create_indiv_subplot_dirs
 from well_data_query import closest_wells_to_earthquake
-from read_b3 import clean_csv, b3_data_quality_histogram, calculate_b3_total_bh_pressure, plot_b3_bhp, plot_b3_ijv
-from plot_moving_avg import plot_daily_injection_moving_avg, plot_daily_pressure_moving_avg, plot_calculated_bottomhole_pressure_moving_avg
+from read_b3 import clean_csv, b3_data_quality_histogram, calculate_b3_total_bh_pressure, plot_b3_bhp, plot_b3_ijv, \
+    plot_b3_pressure
+from plot_moving_avg import plot_daily_injection_moving_avg, plot_daily_pressure_moving_avg, \
+    plot_calculated_bottomhole_pressure_moving_avg
 
 # GLOBAL VARIABLES AND FILE PATHS
 STRAWN_FORMATION_DATA_FILE_PATH = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
@@ -157,6 +159,7 @@ def generate_distinct_colors(num_colors, colormap="tab20", exclude_indices=[4, 5
     # Retrieve colors from selected indices
     colors = [cmap(i / (total_colors - 1)) for i in selected_indices]
     return colors
+
 
 def adjust_brightness(colors, adjustment_factor=1.2):
     """
@@ -366,7 +369,8 @@ def prepare_daily_injection_data_from_df(finalized_df):
     return daily_injection_data, distance_data
 
 
-def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, distance_data, earthquake_info, output_directory, range_km):
+def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, distance_data, earthquake_info,
+                                        output_directory, range_km):
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
     deep_pressure_data = defaultdict(list)
@@ -433,7 +437,7 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
 
     # Save deep well pressure data to a text file
     deep_filename = os.path.join(output_directory,
-                                 f'deep_well_bottomholepressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
+                                 f'deep_well_bottomhole_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
     with open(deep_filename, 'w') as f:
         f.write("Date\tAPI Number\tPressure (PSI)\n")
         for date, pressure_points in deep_pressure_data.items():
@@ -442,7 +446,7 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
 
     # Save shallow well pressure data to a text file
     shallow_filename = os.path.join(output_directory,
-                                    f'shallow_well_bottomholepressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
+                                    f'shallow_well_bottomhole_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
     with open(shallow_filename, 'w') as f:
         f.write("Date\tAPI Number\tPressure (PSI)\n")
         for date, pressure_points in shallow_pressure_data.items():
@@ -496,7 +500,8 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
     for api_number, median_pressure_points in api_median_pressure_shallow.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
+            api_legend_map[api_number] = (
+            f'API {api_number} ({distance} km from epi.)', distance, color_map_shallow[api_number])
         dates, pressures = zip(*median_pressure_points)
 
         # Plot the shallow well data points
@@ -522,17 +527,26 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
     x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                              f'\nOrigin Time: {origin_time}'
-                                                                              f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'
-                                                                              f'\nRange: {range_km} km'))
+    legend_handles.append(
+        Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
+                                                            f'\nOrigin Time: {origin_time}'
+                                                            f'\nOrigin Date: {origin_date_str}'
+                                                            f'\nLocal Magnitude: {local_magnitude}'
+                                                            f'\nRange: {range_km} km'))
 
-    ax1.set_title(f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax1.set_ylabel('Total Bottomhole Pressure (PSI)')
-    ax1.set_xlabel('Date')
+    ax1.set_title(
+        f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_ylabel('Total Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
+    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax1.grid(True)
-    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
+    legend = ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Shallow Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend.set_title("Shallow Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
+
     ax1.tick_params(axis='x', rotation=45)
 
     # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
@@ -584,7 +598,8 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
     for api_number, median_pressure_points in api_median_pressure_deep.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
+            api_legend_map[api_number] = (
+            f'API {api_number} ({distance} km from epi.)', distance, color_map_deep[api_number])
         dates, pressures = zip(*median_pressure_points)
 
         # Plot the deep well data points
@@ -609,17 +624,26 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
     x_min, x_max = ax2.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                              f'\nOrigin Time: {origin_time}'
-                                                                              f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'
-                                                                              f'\nRange: {range_km} km'))
+    legend_handles.append(
+        Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
+                                                            f'\nOrigin Time: {origin_time}'
+                                                            f'\nOrigin Date: {origin_date_str}'
+                                                            f'\nLocal Magnitude: {local_magnitude}'
+                                                            f'\nRange: {range_km} km'))
 
-    ax2.set_title(f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax2.set_xlabel('Date')
-    ax2.set_ylabel('Total Bottomhole Pressure (PSI)')
+    ax2.set_title(
+        f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Total Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
     ax2.grid(True)
-    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
+    legend2 = ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Deep Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend2.set_title("Deep Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
+
     ax2.tick_params(axis='x', rotation=45)
 
     # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
@@ -647,7 +671,9 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
     # Save the plot as an image file
     output_filename = os.path.join(output_directory,
                                    f'event_{earthquake_info["Event ID"]}_calc_bottomhole_pressure_range{range_km}km.png')
+
     plt.tight_layout()
+    plt.subplots_adjust(hspace=0.2)
     plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
     print(f"Daily bottomhole plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
@@ -782,7 +808,8 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
     for api_number, median_pressure_points in api_median_pressure_shallow.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
+            api_legend_map[api_number] = (
+            f'API {api_number} ({distance} km from epi.)', distance, color_map_shallow[api_number])
         dates, pressures = zip(*median_pressure_points)
 
         # Plot the shallow well data points
@@ -808,18 +835,26 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
     x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                              f'\nOrigin Time: {origin_time}'
-                                                                              f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'
-                                                                              f'\nRange: {range_km} km'))
+    legend_handles.append(
+        Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
+                                                            f'\nOrigin Time: {origin_time}'
+                                                            f'\nOrigin Date: {origin_date_str}'
+                                                            f'\nLocal Magnitude: {local_magnitude}'
+                                                            f'\nRange: {range_km} km'))
 
-    ax1.set_title(f'Reported Daily Avg Pressures Used with Moving Avg for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax1.set_xlabel('Date')
-    ax1.set_ylabel('Reported Average Pressure (PSIG)')
+    ax1.set_title(
+        f'Reported Daily Avg Pressures for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
+    ax1.set_ylabel('Reported Average Pressure (PSIG)', fontsize=12, fontweight='bold')
     ax1.grid(True)
-    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
     ax1.tick_params(axis='x', rotation=45)
+    legend = ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Shallow Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend.set_title("Shallow Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
 
     # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
     if all_shallow_median_bps:
@@ -870,7 +905,8 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
     for api_number, median_pressure_points in api_median_pressure_deep.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
+            api_legend_map[api_number] = (
+            f'API {api_number} ({distance} km from epi.)', distance, color_map_deep[api_number])
         dates, pressures = zip(*median_pressure_points)
 
         # Plot the deep well data points
@@ -892,20 +928,28 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
     for legend_label, _, color in sorted_legend_items:
         legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
 
-    x_min, x_max = ax2.get_xlim()
+    x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                              f'\nOrigin Time: {origin_time}'
-                                                                              f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'
-                                                                              f'\nRange: {range_km} km'))
+    legend_handles.append(
+        Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
+                                                            f'\nOrigin Time: {origin_time}'
+                                                            f'\nOrigin Date: {origin_date_str}'
+                                                            f'\nLocal Magnitude: {local_magnitude}'
+                                                            f'\nRange: {range_km} km'))
 
-    ax2.set_title(f'Reported Daily Avg Pressures Used with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax2.set_xlabel('Date')
-    ax2.set_ylabel('Reported Average Pressure (PSIG)')
+    ax2.set_title(
+        f'Reported Daily Avg Pressures Used with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Reported Average Pressure (PSIG)', fontsize=12, fontweight='bold')
     ax2.grid(True)
-    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2)
+    legend2 = ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Deep Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend2.set_title("Deep Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax2.tick_params(axis='x', rotation=45)
 
     # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
@@ -1006,7 +1050,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
 
     # Save deep well injection data to a text file
     deep_filename = os.path.join(output_directory,
-                                 f'deep_well_injection_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
+                                 f'deep_well_inj_vol_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
     with open(deep_filename, 'w') as f:
         f.write("Date\tAPI Number\tInjection (BBLs)\n")
         for date, injection_points in deep_injection_data.items():
@@ -1015,7 +1059,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
 
     # Save shallow well injection data to a text file
     shallow_filename = os.path.join(output_directory,
-                                    f'shallow_well_injection_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
+                                    f'shallow_well_inj_vol_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
     with open(shallow_filename, 'w') as f:
         f.write("Date\tAPI Number\tInjection (BBLs)\n")
         for date, injection_points in shallow_injection_data.items():
@@ -1044,7 +1088,6 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                          zip(shallow_distances, brightened_shallow_colors)}
     color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, brightened_deep_colors)}
 
-
     # Create subplots
     fig, axes = plt.subplots(2, 1, figsize=(28, 20))
 
@@ -1071,7 +1114,8 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     for api_number, median_injection_points in api_median_injection.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_shallow[api_number])
+            api_legend_map[api_number] = (
+            f'API {api_number} ({distance} km from epi.)', distance, color_map_shallow[api_number])
         dates, injections = zip(*median_injection_points)
         ax1.plot(dates, injections, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
         all_shallow_median_injections.extend(injections)
@@ -1084,16 +1128,24 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                              f'\nOrigin Time: {origin_time}'
-                                                                              f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'
-                                                                              f'\nRange: {range_km} km'))
+    legend_handles.append(
+        Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
+                                                            f'\nOrigin Time: {origin_time}'
+                                                            f'\nOrigin Date: {origin_date_str}'
+                                                            f'\nLocal Magnitude: {local_magnitude}'
+                                                            f'\nRange: {range_km} km'))
 
-    ax1.set_title(f'Reported Daily Injected Volumes for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax1.set_ylabel('Reported Injected Volumes (BBLs)')
-    ax1.set_xlabel('Date')
-    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
+    ax1.set_title(
+        f'Reported Daily Injected Volumes for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_ylabel('Reported Injected Volumes (BBLs)', fontsize=12, fontweight='bold')
+    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
+    legend = ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Shallow Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend.set_title("Shallow Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax1.tick_params(axis='x', rotation=45)
@@ -1126,7 +1178,8 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     for api_number, median_injection_points in api_median_injection.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
-            api_legend_map[api_number] = (f'{api_number} ({distance} km)', distance, color_map_deep[api_number])
+            api_legend_map[api_number] = (
+            f'API {api_number} ({distance} km from epi.)', distance, color_map_deep[api_number])
         dates, injections = zip(*median_injection_points)
         ax2.plot(dates, injections, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
         all_deep_median_injections.extend(injections)
@@ -1136,19 +1189,27 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     for legend_label, _, color in sorted_legend_items:
         legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
 
-    x_min, x_max = ax2.get_xlim()
+    x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
         ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-    legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'{earthquake_info["Event ID"]}'
-                                                                              f'\nOrigin Time: {origin_time}'
-                                                                              f'\nOrigin Date: {origin_date_str}'
-                                                                              f'\nLocal Magnitude: {local_magnitude}'
-                                                                              f'\nRange: {range_km} km'))
+    legend_handles.append(
+        Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
+                                                            f'\nOrigin Time: {origin_time}'
+                                                            f'\nOrigin Date: {origin_date_str}'
+                                                            f'\nLocal Magnitude: {local_magnitude}'
+                                                            f'\nRange: {range_km} km'))
 
-    ax2.set_title(f'Reported Daily Injected Volumes with Moving Avg for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range')
-    ax2.set_ylabel('Reported Injected Volumes (BBLs)')
-    ax2.set_xlabel('Date')
-    ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=2)
+    ax2.set_title(
+        f'Reported Daily Injected Volumes with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('Reported Injected Volumes (BBLs)', fontsize=12, fontweight='bold')
+    ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
+    legend2 = ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
+                        title="Deep Well Information and Earthquake Details",
+                        prop={'size': 10})  # Increase handle font size
+
+    # Bold the title and adjust its font size
+    legend2.set_title("Deep Well Information and Earthquake Details",
+                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax2.tick_params(axis='x', rotation=45)
@@ -1229,9 +1290,10 @@ def create_well_histogram_per_api(cleaned_well_data_df, range_km, earthquake_inf
         # Plot the histogram
         fig, ax = plt.subplots(figsize=(12, 6))
         monthly_totals.plot(kind='bar', stacked=True, ax=ax)
-        ax.set_title(f'Well Data for API #{api_number} ({distance_from_earthquake} KM away from {earthquake_info["Event ID"]}) (Total Records: {total_sum})')
-        ax.set_xlabel('Month-Year')
-        ax.set_ylabel('Days')
+        ax.set_title(
+            f'Well Data for API #{api_number} ({distance_from_earthquake} KM away from {earthquake_info["Event ID"]}) (Total Records: {total_sum})')
+        ax.set_xlabel('Month-Year', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Days', fontsize=12, fontweight='bold')
         ax.legend(legend_labels, title='Category', loc='upper right')
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
         plt.tight_layout()
@@ -1289,8 +1351,9 @@ if len(sys.argv) > 1:
         b3_data_quality_histogram(prepared_b3df, range_km, earthquake_info, output_dir)
         plot_b3_bhp(prepared_b3df, earthquake_info, output_dir, range_km)
         plot_b3_ijv(prepared_b3df, earthquake_info, output_dir, range_km)
+        plot_b3_pressure(prepared_b3df, earthquake_info, output_dir, range_km)
         create_indiv_subplot_dirs(base_dir=output_dir)
-        gather_well_data(base_path=output_dir)
+        gather_well_data(base_path=output_dir, csv_file=output_file_path, earthquake_info=earthquake_info)
 
         quit()
 
@@ -1343,17 +1406,20 @@ if len(sys.argv) > 1:
 
         finalized_df.to_csv(output_file2, index=False)
 
-        calculated_bottomhole_pressure_data, distance_data = prepare_calculated_bottomhole_pressure_data_from_df(finalized_df)
+        calculated_bottomhole_pressure_data, distance_data = prepare_calculated_bottomhole_pressure_data_from_df(
+            finalized_df)
         daily_injection_data, distance_data2 = prepare_daily_injection_data_from_df(finalized_df)
 
-        plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, distance_data, earthquake_info, output_dir, range_km)
+        plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, distance_data, earthquake_info,
+                                            output_dir, range_km)
         plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, output_dir, range_km)
         create_indiv_subplot_dirs(base_dir=output_dir)
         gather_well_data(base_path=output_dir, csv_file=output_file, earthquake_info=earthquake_info)
 
         plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthquake_info, output_dir, range_km)
         plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir, range_km)
-        plot_calculated_bottomhole_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir, range_km, finalized_df)
+        plot_calculated_bottomhole_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir,
+                                                       range_km, finalized_df)
 
         quit()
     else:

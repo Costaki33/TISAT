@@ -8,7 +8,6 @@ import matplotlib.dates as mdates
 from matplotlib.dates import MonthLocator, DateFormatter
 
 
-# Function to plot injection data for each API number and save the plot
 def plot_injection_data(file_path, output_directory, csv_file, earthquake_info):
     try:
         # Read the data from the text file
@@ -39,93 +38,14 @@ def plot_injection_data(file_path, output_directory, csv_file, earthquake_info):
             api_data = data[data['API Number'] == api_number]
 
             # Retrieve the distance from earthquake for the current API number
-            distance_row = well_info_df[well_info_df['API Number'] == api_number]
-            if not distance_row.empty:
-                distance = distance_row['Distance from Earthquake (km)'].values[0]
+            # Check if 'API Number' or 'APINumber' exists in well_info_df
+            if 'API Number' in well_info_df.columns:
+                distance_row = well_info_df[well_info_df['API Number'] == api_number]
+            elif 'APINumber' in well_info_df.columns:
+                distance_row = well_info_df[well_info_df['APINumber'] == api_number]
             else:
-                distance = 'Unknown'
-
-            plt.figure(figsize=(18, 10))
-            plt.scatter(api_data['Date'], api_data[volume_column])
-            plt.xlabel('Date')
-            plt.ylabel(volume_column)
-            plt.title(f'Injection Data for API Number {api_number} (Distance from Earthquake: {distance} km)')
-            plt.grid(True)
-
-            # Set the x-axis major locator to MonthLocator
-            ax = plt.gca()
-            ax.xaxis.set_major_locator(MonthLocator())
-            ax.xaxis.set_major_formatter(DateFormatter('%Y-%m'))
-
-            # Rotate date labels for better readability
-            plt.xticks(rotation=45)
-            # Add a vertical dashed red line for the earthquake origin date
-            ax.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
-
-            # Add the earthquake event to the legend
-            legend_handles = [mlines.Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: '
-                                                                                         f'{earthquake_info["Event ID"]}\n'
-                                                                                         f'Origin Time: {origin_time}\n'
-                                                                                         f'Origin Date: {origin_date_str}\n'
-                                                                                         f'Local Magnitude: {local_magnitude}'),
-                              mlines.Line2D([], [], color='blue', marker='o', linestyle='', label='Injection Data')]
-            # Add scatter plot handle to legend
-
-            plt.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=1)
-
-            # Get current tick positions and labels
-            # ticks = ax.get_xticks()
-            # labels = [item.get_text() for item in ax.get_xticklabels()]
-
-            # Adjust ticks and labels to increase spacing
-            # new_ticks = ticks[::2]
-            # new_labels = labels[::2]
-            #
-            # ax.set_xticks(new_ticks)
-            # ax.set_xticklabels(new_labels)
-
-            # Ensure the output directory exists
-            os.makedirs(output_directory, exist_ok=True)
-
-            # Save the plot as a PNG file in the specified output directory
-            plot_file_path = os.path.join(output_directory, f'{api_number}_injection_plot.png')
-            plt.savefig(plot_file_path, dpi=300, bbox_inches='tight', format='png')
-            plt.close()
-    except Exception as e:
-        print(f"An error occurred while processing {file_path}: {e}")
-
-
-def plot_injection_data(file_path, output_directory, csv_file, earthquake_info):
-    try:
-        # Read the data from the text file
-        data = pd.read_csv(file_path, sep='\t')
-        data.columns = data.columns.str.strip()
-
-        # Read Injection Well Data CSV file
-        well_info_df = pd.read_csv(csv_file)
-
-        # Parse the earthquake event information
-        origin_date_str = earthquake_info['Origin Date']
-        origin_time = earthquake_info['Origin Time']
-        local_magnitude = earthquake_info['Local Magnitude']
-        origin_date = datetime.datetime.strptime(origin_date_str, '%Y-%m-%d')
-        origin_date_num = mdates.date2num(origin_date)
-
-        # Convert the 'Date' column to datetime format
-        data['Date'] = pd.to_datetime(data['Date'])
-
-        # Determine the correct column for volume
-        volume_column = 'Injection (BBLs)' if 'Injection (BBLs)' in data.columns else 'Monthly Volume (BBL)'
-
-        # Get the unique API numbers
-        api_numbers = data['API Number'].unique()
-
-        # Create individual scatter plots for each API number
-        for api_number in api_numbers:
-            api_data = data[data['API Number'] == api_number]
-
-            # Retrieve the distance from earthquake for the current API number
-            distance_row = well_info_df[well_info_df['API Number'] == api_number]
+                print("No API column found in well_info_df.")
+                distance_row = pd.DataFrame()  # Empty DataFrame if neither column exists
             if not distance_row.empty:
                 distance = distance_row['Distance from Earthquake (km)'].values[0]
             else:
@@ -136,7 +56,7 @@ def plot_injection_data(file_path, output_directory, csv_file, earthquake_info):
             plt.xlabel('Date')
             plt.ylabel(volume_column)
             plt.title(
-                f'Injection Volumes Over Time for API Number {api_number} (Distance from Earthquake: {distance} km)')
+                f'Injection Volumes Over Time for API Number {api_number} (Distance from Earthquake: {distance} km)', fontsize=14, fontweight='bold')
             plt.grid(True)
 
             # Set the x-axis major locator to MonthLocator
@@ -155,7 +75,7 @@ def plot_injection_data(file_path, output_directory, csv_file, earthquake_info):
                                                                                          f'Origin Time: {origin_time}\n'
                                                                                          f'Origin Date: {origin_date_str}\n'
                                                                                          f'Local Magnitude: {local_magnitude}'),
-                              mlines.Line2D([], [], color='blue', marker='o', linestyle='', label='Injection Data')]
+                              mlines.Line2D([], [], color='blue', marker='o', linestyle='', label='Volume Injected')]
             # Add scatter plot handle to legend
 
             plt.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=1)
@@ -202,7 +122,7 @@ def plot_pressure_data(file_path, output_directory, csv_file, earthquake_info):
         data['Date'] = pd.to_datetime(data['Date'])
 
         # Determine the correct column for volume
-        pressure_column = 'Average Pressure (PSIG)' # if 'Average Pressure (PSI)' in data.columns else 'Monthly Volume (BBL)'
+        pressure_column = 'Average Pressure (PSIG)' if 'Average Pressure (PSIG)' in data.columns else 'InjectedPSIG'
 
         # Get the unique API numbers
         api_numbers = data['API Number'].unique()
@@ -212,7 +132,14 @@ def plot_pressure_data(file_path, output_directory, csv_file, earthquake_info):
             api_data = data[data['API Number'] == api_number]
 
             # Retrieve the distance from earthquake for the current API number
-            distance_row = well_info_df[well_info_df['API Number'] == api_number]
+            # Check if 'API Number' or 'APINumber' exists in well_info_df
+            if 'API Number' in well_info_df.columns:
+                distance_row = well_info_df[well_info_df['API Number'] == api_number]
+            elif 'APINumber' in well_info_df.columns:
+                distance_row = well_info_df[well_info_df['APINumber'] == api_number]
+            else:
+                print("No API column found in well_info_df.")
+                distance_row = pd.DataFrame()  # Empty DataFrame if neither column exists
             if not distance_row.empty:
                 distance = distance_row['Distance from Earthquake (km)'].values[0]
             else:
@@ -223,7 +150,7 @@ def plot_pressure_data(file_path, output_directory, csv_file, earthquake_info):
             plt.xlabel('Date')
             plt.ylabel(pressure_column)
             plt.title(
-                f'Average Injection Pressures Over Time for API Number {api_number} (Distance from Earthquake: {distance} km)')
+                f'Average Injection Pressures Over Time for API Number {api_number} (Distance from Earthquake: {distance} km)', fontsize=14, fontweight='bold')
             plt.grid(True)
 
             # Set the x-axis major locator to MonthLocator
@@ -242,7 +169,7 @@ def plot_pressure_data(file_path, output_directory, csv_file, earthquake_info):
                                                                                          f'Origin Time: {origin_time}\n'
                                                                                          f'Origin Date: {origin_date_str}\n'
                                                                                          f'Local Magnitude: {local_magnitude}'),
-                              mlines.Line2D([], [], color='blue', marker='o', linestyle='', label='Injection Data')]
+                              mlines.Line2D([], [], color='blue', marker='o', linestyle='', label='Volume Injected')]
             # Add scatter plot handle to legend
 
             plt.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=1)
@@ -283,8 +210,8 @@ def modify_string(abbreviation, range_):
 def gather_well_data(base_path: str, csv_file: str, earthquake_info: dict):
     # Iterate through all combinations of abbreviations and ranges
     prefixes = [
-        'shallow_well_injection_data',
-        'deep_well_injection_data',
+        'shallow_well_inj_vol_data',
+        'deep_well_inj_vol_data',
         'shallow_well_listed_pressure_data',
         'deep_well_listed_pressure_data'
     ]
