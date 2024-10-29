@@ -7,7 +7,7 @@ from matplotlib.lines import Line2D
 from matplotlib import pyplot as plt
 from collections import defaultdict
 from friction_loss_calc import friction_loss
-
+from matplotlib.text import Text
 
 def classify_well_type(well_lat, well_lon, well_depth, strawn_formation_data, cache={}):
     """
@@ -246,6 +246,7 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
 
     # Classify API numbers and prepare pressure data
     api_color_map = {}
+    api_num_dist_map = {}
     for _, row in cleandf.iterrows():
         api_number = row['APINumber']
         pressure = row['Bottomhole Pressure']
@@ -254,6 +255,8 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
         distance_from_eq = row['Distance from Earthquake (km)']
 
         label_text = f"API {api_number} ({distance_from_eq} km)"
+        # Add API number and distance to the mapping
+        api_num_dist_map[api_number] = distance_from_eq  # Store distance as value for the API key
 
         if depth_class == 'shallow':
             color = 'green'
@@ -299,14 +302,14 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
         _, _, label, _ = pressure_points[0]
         color = shallow_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
-        legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='w', markerfacecolor=color,
+        legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
                                                              label=label, markersize=10)))
 
     for api_number, pressure_points in deep_pressure_data.items():
         _, _, label, _ = pressure_points[0]
         color = deep_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
-        legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='w', markerfacecolor=color,
+        legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
                                                           label=label, markersize=10)))
 
     # Custom legend for B3 Well Classification
@@ -487,14 +490,14 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
         _, _, label, _ = injection_points[0]
         color = shallow_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
-        legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='w', markerfacecolor=color,
+        legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
                                                              label=label, markersize=10)))
 
     for api_number, injection_points in deep_injection_data.items():
         _, _, label, _ = injection_points[0]
         color = deep_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
-        legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='w', markerfacecolor=color,
+        legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
                                                           label=label, markersize=10)))
 
     # Custom legend for B3 Well Classification
@@ -674,14 +677,14 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
         _, _, label, _ = injection_points[0]
         color = shallow_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
-        legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='w', markerfacecolor=color,
+        legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
                                                              label=label, markersize=10)))
 
     for api_number, injection_points in deep_injection_data.items():
         _, _, label, _ = injection_points[0]
         color = deep_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
-        legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='w', markerfacecolor=color,
+        legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
                                                           label=label, markersize=10)))
 
     # Custom legend for B3 Well Classification

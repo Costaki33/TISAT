@@ -265,7 +265,7 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
     for legend_label, _, color in sorted_legend_items:
-        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+        legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
@@ -375,7 +375,7 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
     for legend_label, _, color in sorted_legend_items:
-        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+        legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax2.get_xlim()
     if x_min <= origin_date_num <= x_max:
@@ -572,7 +572,7 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
     for legend_label, _, color in sorted_legend_items:
-        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+        legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
@@ -676,7 +676,7 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
     for legend_label, _, color in sorted_legend_items:
-        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+        legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax2.get_xlim()
     if x_min <= origin_date_num <= x_max:
@@ -901,7 +901,7 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
     for legend_label, _, color in sorted_legend_items:
-        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+        legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax1.get_xlim()
     if x_min <= origin_date_num <= x_max:
@@ -1022,7 +1022,7 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
     legend_handles = []
     sorted_legend_items = sorted(api_legend_map.values(), key=lambda x: x[1])
     for legend_label, _, color in sorted_legend_items:
-        legend_handles.append(Line2D([0], [0], marker='o', color='w', markerfacecolor=color, label=legend_label))
+        legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax2.get_xlim()
     if x_min <= origin_date_num <= x_max:
