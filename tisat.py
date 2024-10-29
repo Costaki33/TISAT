@@ -536,7 +536,7 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
 
     ax1.set_title(
         f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
-    ax1.set_ylabel('Total Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
+    ax1.set_ylabel('Calculated Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
     ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax1.grid(True)
     legend = ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
@@ -634,7 +634,7 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
     ax2.set_title(
         f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
     ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
-    ax2.set_ylabel('Total Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Calculated Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
     ax2.grid(True)
     legend2 = ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
                         title="Deep Well Information and Earthquake Details",
@@ -939,7 +939,7 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
                                                             f'\nRange: {range_km} km'))
 
     ax2.set_title(
-        f'Reported Daily Avg Pressures Used with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+        f'Reported Daily Avg Pressures Used for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
     ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax2.set_ylabel('Reported Average Pressure (PSIG)', fontsize=12, fontweight='bold')
     ax2.grid(True)
@@ -1288,10 +1288,10 @@ def create_well_histogram_per_api(cleaned_well_data_df, range_km, earthquake_inf
                          for category, count, percent in zip(categories, total_counts, percentages)]
 
         # Plot the histogram
-        fig, ax = plt.subplots(figsize=(12, 6))
+        fig, ax = plt.subplots(figsize=(16, 10))
         monthly_totals.plot(kind='bar', stacked=True, ax=ax)
         ax.set_title(
-            f'Well Data for API #{api_number} ({distance_from_earthquake} KM away from {earthquake_info["Event ID"]}) (Total Records: {total_sum})')
+            f'Well Data for API #{api_number} ({distance_from_earthquake} KM away from {earthquake_info["Event ID"]}) (Total Records: {total_sum})', fontsize=12, fontweight='bold')
         ax.set_xlabel('Month-Year', fontsize=12, fontweight='bold')
         ax.set_ylabel('Days', fontsize=12, fontweight='bold')
         ax.legend(legend_labels, title='Category', loc='upper right')

@@ -275,9 +275,8 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
         dates, pressures, labels, colors = zip(*pressure_points)
         scatter = ax1.scatter(dates, pressures, label=labels[0], s=12)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax1.set_title(f'{eventID} Bottomhole Pressure - Shallow Well ({range_km} KM Range)', fontsize=14, fontweight='bold')
-    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
-    ax1.set_ylabel('Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_ylabel('Calculated Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold', labelpad=10)
     ax1.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
 
     # Plot for deep well data
@@ -286,8 +285,8 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
         dates, pressures, labels, colors = zip(*pressure_points)
         scatter = ax2.scatter(dates, pressures, label=labels[0], s=12)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax2.set_title(f'{eventID} Bottomhole Pressure - Deep Well ({range_km} KM Range)', fontsize=14, fontweight='bold')
-    ax2.set_ylabel('Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
+    ax2.set_title(f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('Calcualted Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold', labelpad=18)
 
     ax1.axvline(x=origin_date, color='red', linestyle='--', linewidth=2)
     ax2.axvline(x=origin_date, color='red', linestyle='--', linewidth=2)
@@ -352,7 +351,6 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
                         title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)", prop={'size': 10})
     legend2.set_title("Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                      prop={'size': 12, 'weight': 'bold'})
-    #plt.tight_layout(rect=[0, 0, 1, 1])
 
     legends_list = [ax1.get_legend(), ax2.get_legend()]
     for legend in legends_list:
@@ -373,14 +371,24 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
                     # For example, if it's a classification label like 'Shallow', 'Deep', 'Both'
                     continue
 
-    # Set x-axis to show ticks for each month
+    # Set x-axis labels and date tick formatting for both ax1 and ax2
+    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
+    ax1.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    for label in ax1.get_xticklabels():
+        label.set_rotation(45)
+        label.set_ha('center')
+
     ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax2.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-    fig.autofmt_xdate()
+    for label in ax2.get_xticklabels():
+        label.set_rotation(45)
+        label.set_ha('center')
 
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.2)
+
     # Save the plot to a file
     plot_filename = os.path.join(output_dir,
                                  f'bottomehole_pressure_over_time_{earthquake_information["Event ID"]}_range{range_km}km.png')
@@ -455,9 +463,8 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
         dates, injections, labels, colors = zip(*injection_points)
         scatter = ax1.scatter(dates, injections, label=labels[0], s=12)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax1.set_title(f'{eventID} Monthly Injection Volumes - Shallow Well ({range_km} KM Range)', fontsize=14, fontweight='bold')
-    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
-    ax1.set_ylabel('Daily Injection (BBLs)', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Reported Monthly Injected Volumes for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_ylabel('Reported Injected Volumes (BBLs)', fontsize=12, fontweight='bold')
     ax1.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
 
     # Plot for deep well data
@@ -466,8 +473,8 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
         dates, injections, labels, colors = zip(*injection_points)
         scatter = ax2.scatter(dates, injections, label=labels[0], s=12)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax2.set_title(f'{eventID} Monthly Injection Volumes - Deep Well ({range_km} KM Range)', fontsize=14, fontweight='bold')
-    ax2.set_ylabel('Daily Injection (BBLs)', fontsize=12, fontweight='bold')
+    ax2.set_title(f'Reported Monthly Injected Volumes for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('Reported Injected Volumes (BBLs)', fontsize=12, fontweight='bold')
 
     ax1.axvline(x=origin_date, color='red', linestyle='--', linewidth=2)
     ax2.axvline(x=origin_date, color='red', linestyle='--', linewidth=2)
@@ -532,7 +539,6 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
                         title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)", prop={'size': 10})
     legend2.set_title("Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                      prop={'size': 12, 'weight': 'bold'})
-    #plt.tight_layout(rect=[0, 0, 1, 1])
 
     legends_list = [ax1.get_legend(), ax2.get_legend()]
     for legend in legends_list:
@@ -553,11 +559,20 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
                     # For example, if it's a classification label like 'Shallow', 'Deep', 'Both'
                     continue
 
-    # Set x-axis to show ticks for each month
+    # Set x-axis labels and date tick formatting for both ax1 and ax2
+    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
+    ax1.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    for label in ax1.get_xticklabels():
+        label.set_rotation(45)
+        label.set_ha('center')
+
     ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax2.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-    fig.autofmt_xdate()
+    for label in ax2.get_xticklabels():
+        label.set_rotation(45)
+        label.set_ha('center')
 
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.2)
@@ -634,9 +649,8 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
         dates, pressures, labels, colors = zip(*injection_points)
         scatter = ax1.scatter(dates, pressures, label=labels[0], s=12)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax1.set_title(f'{eventID} Monthly Injection Pressures - Shallow Well ({range_km} KM Range)', fontsize=14, fontweight='bold')
-    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
-    ax1.set_ylabel('Injected Pressure (PSIG)', fontsize=12, fontweight='bold')
+    ax1.set_title(f'Reported Monthly Pressures Used for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_ylabel('Reported Injection Pressure Used (PSIG)', fontsize=12, fontweight='bold')
     ax1.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
 
     # Plot for deep well pressure data
@@ -645,8 +659,8 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
         dates, pressures, labels, colors = zip(*injection_points)
         scatter = ax2.scatter(dates, pressures, label=labels[0], s=12)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax2.set_title(f'{eventID} Monthly Injection Pressures - Deep Well ({range_km} KM Range)', fontsize=14, fontweight='bold')
-    ax2.set_ylabel('Injected Pressure (PSIG)', fontsize=12, fontweight='bold')
+    ax2.set_title(f'Reported Monthly Pressures Used for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('Reported Injection Pressure Used (PSIG)', fontsize=12, fontweight='bold')
 
     # Add earthquake event line
     ax1.axvline(x=origin_date, color='red', linestyle='--', linewidth=2)
@@ -712,7 +726,6 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
                         title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)", prop={'size': 10})
     legend2.set_title("Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                      prop={'size': 12, 'weight': 'bold'})
-    #plt.tight_layout(rect=[0, 0, 1, 1])
 
     legends_list = [ax1.get_legend(), ax2.get_legend()]
     for legend in legends_list:
@@ -731,11 +744,20 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
                 else:
                     continue
 
-    # Set x-axis to show ticks for each month
+    # Set x-axis labels and date tick formatting for both ax1 and ax2
+    ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
+    ax1.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    for label in ax1.get_xticklabels():
+        label.set_rotation(45)
+        label.set_ha('center')
+
     ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax2.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-    fig.autofmt_xdate()
+    for label in ax2.get_xticklabels():
+        label.set_rotation(45)
+        label.set_ha('center')
 
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.2)

@@ -169,7 +169,7 @@ def plot_pressure_data(file_path, output_directory, csv_file, earthquake_info):
                                                                                          f'Origin Time: {origin_time}\n'
                                                                                          f'Origin Date: {origin_date_str}\n'
                                                                                          f'Local Magnitude: {local_magnitude}'),
-                              mlines.Line2D([], [], color='blue', marker='o', linestyle='', label='Volume Injected')]
+                              mlines.Line2D([], [], color='blue', marker='o', linestyle='', label='Pressure Used during Injection Process')]
             # Add scatter plot handle to legend
 
             plt.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize='medium', ncol=1)
