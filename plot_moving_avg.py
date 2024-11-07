@@ -924,7 +924,7 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
     # Bold the title and adjust its font size
     legend.set_title("Shallow Well Information and Earthquake Details",
                      prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
-    ax1.tick_params(axis='x', rotation=45)
+    ax1.tick_params(axis='x', length=10, width=2, rotation=45)
 
     # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
     if all_shallow_median_bps:

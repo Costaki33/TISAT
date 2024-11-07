@@ -547,7 +547,7 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
     legend.set_title("Shallow Well Information and Earthquake Details",
                      prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
 
-    ax1.tick_params(axis='x', rotation=45)
+    ax1.tick_params(axis='x', length=10, width=2, rotation=45)
 
     # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
     if all_shallow_median_bps:
@@ -644,7 +644,7 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
     legend2.set_title("Deep Well Information and Earthquake Details",
                      prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
 
-    ax2.tick_params(axis='x', rotation=45)
+    ax2.tick_params(axis='x', length=10, width=2, rotation=45)
 
     # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
     if all_deep_median_bps:
@@ -847,7 +847,7 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
     ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax1.set_ylabel('Reported Average Pressure (PSIG)', fontsize=12, fontweight='bold')
     ax1.grid(True)
-    ax1.tick_params(axis='x', rotation=45)
+    ax1.tick_params(axis='x', length=10, width=2, rotation=45)
     legend = ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
                         title="Shallow Well Information and Earthquake Details",
                         prop={'size': 10})  # Increase handle font size
@@ -950,7 +950,7 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
     # Bold the title and adjust its font size
     legend2.set_title("Deep Well Information and Earthquake Details",
                      prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
-    ax2.tick_params(axis='x', rotation=45)
+    ax2.tick_params(axis='x', length=10, width=2, rotation=45)
 
     # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
     if all_deep_median_bps:
@@ -1148,7 +1148,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                      prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-    ax1.tick_params(axis='x', rotation=45)
+    ax1.tick_params(axis='x', length=10, width=2, rotation=45)
 
     # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
     if all_shallow_median_injections:
@@ -1212,7 +1212,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                      prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-    ax2.tick_params(axis='x', rotation=45)
+    ax2.tick_params(axis='x', length=10, width=2, rotation=45)
 
     # Calculate y-axis limits for shallow wells using the 5th and 95th percentiles
     if all_deep_median_injections:
