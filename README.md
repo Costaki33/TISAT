@@ -1,4 +1,5 @@
 <img src='https://github.com/Costaki33/TISAT/blob/main/TISAT.png' alt='Slicing'>
+<p>Image by [Artist's Name]</p>
 
 ## TexNet Injection-Seismic Analysis Tool
 By RE. Constantinos Skevofilax and PhD. Alexandros Savvaidis of BEG TexNet
