@@ -1,5 +1,4 @@
 <img src='https://github.com/Costaki33/TISAT/blob/main/TISAT.png' alt='Slicing'>
-<p>Image by [Artist's Name]</p>
 
 ## TexNet Injection-Seismic Analysis Tool
 By RE. Constantinos Skevofilax and PhD. Alexandros Savvaidis of BEG TexNet
@@ -166,6 +165,11 @@ Below are sample output plots of injection activity over time as well as the qua
 ## Applications
 **TISAT** enables detailed analysis of injection activity across multiple wells at different depths, helping seismologists identify unusual injection patterns that may be linked to induced seismicity in a given region. 
 TISAT has been instrumental in identifying hazardous well activity in the Scurry-Fisher region of Texas, which was linked to the inducement of four M4+ earthquakes in the area in July 2024. 
+
+
+## Credits
+
+The banner image used in this repository was created by [Elena Kalogirou]. Special thanks to her for her work.
 
 ## Questions? 
 Please reach out to **constantinos.skevofilax@austin.utexas.edu** for any questions about usage, code development, or applications!
