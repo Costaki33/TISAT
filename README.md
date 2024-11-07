@@ -169,7 +169,7 @@ TISAT has been instrumental in identifying hazardous well activity in the Scurry
 
 ## Credits
 
-The banner image used in this repository was created by **Elena Kalogirou** — special thanks to her for her work.
+The banner image used in this repository was created by **Elena Kalogirou** — special thanks to her for her work!
 
 ## Questions? 
 Please reach out to **constantinos.skevofilax@austin.utexas.edu** for any questions about usage, code development, or applications!
