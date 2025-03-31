@@ -1,8 +1,11 @@
+from datetime import datetime
 import pandas as pd
 import requests
+import urllib3
 import csv
 import json
 import io
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) # Disable warnings because .beg.utexas.edu is trustworthy
 
 
 def closest_wells_to_earthquake(center_lat, center_lon, radius_km):
@@ -41,9 +44,11 @@ def closest_wells_to_earthquake(center_lat, center_lon, radius_km):
         "Accept": "application/json"
     }
 
+    print(f"\n[{datetime.now().replace(microsecond=0, second=0)}] Querying {apiUrl} for injection well data...\n")
     request = requests.post(apiUrl, data=json.dumps(exportArgs), headers=headers, verify=False)
 
     if request.status_code == 200:
+        print(f"\n[{datetime.now().replace(microsecond=0, second=0)}] Successfully queried IVRT.")
         responseContent = request.text
 
         # Use csv module to handle quoted fields properly
@@ -78,10 +83,15 @@ def closest_wells_to_earthquake(center_lat, center_lon, radius_km):
         df['Date of Injection'] = pd.to_datetime(df['Date of Injection'], errors='coerce')
         df['Injection End Date'] = pd.to_datetime(df['Injection End Date'], errors='coerce')
         df['Date Added'] = pd.to_datetime(df['Date Added'], errors='coerce')
-        return df
+
+        if df.empty:
+            print(f"\n[{datetime.now().replace(microsecond=0, second=0)}] ERROR: Was able to successfully query TexNet's IVRT, however the IVRT did not return back any injection wells within {radius_km} KM of the epicenter. Please try another earthquake or provide B3 data. Exiting...")
+            return None
+        else:
+            return df
 
     else:
-        print("Oh no! We got a response code of: " + str(request.status_code))
+        print(f"[{datetime.now().replace(microsecond=0, second=0)}] ERROR: Response code: " + str(request.status_code))
         quit()
 
 

@@ -1076,17 +1076,3 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
     plt.subplots_adjust(hspace=0.2)
     plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
     print(f"Daily bottomhole plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
-
-
-# # Load data and generate plot
-# data = pd.read_csv('/home/skevofilaxc/Documents/earthquake_plots/oizv/ivrt_finalized_well_data.csv')
-# earthquake_info = {'Event ID': 'texnet2024oizv', 'Latitude': 32.76580810546875, 'Longitude': -100.65941787347559,
-#                    'Origin Date': '2024-07-23', 'Origin Time': '03:38:42', 'Local Magnitude': 4.9}
-# output_directory = "/home/skevofilaxc/Documents/earthquake_plots/oizv/test"
-#
-# daily_injection_data, distance_data = prepare_daily_injection_data_from_df(data)
-# total_pressure_data, distance_data = prepare_total_pressure_data_from_df(data)
-
-#plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthquake_info, output_directory, range_km=25)
-#plot_daily_pressure_moving_avg(total_pressure_data, distance_data, earthquake_info, output_directory, range_km=25)
-#plot_calculated_bottomhole_pressure(total_pressure_data, distance_data, earthquake_info, output_directory, range_km=25, cleaned_well_data_df=data)

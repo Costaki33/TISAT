@@ -10,9 +10,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from collections import defaultdict
-
-from geopy.distance import distance
 from matplotlib.lines import Line2D
+from sympy.physics.units import millisecond
+
 from friction_loss_calc import friction_loss
 from individual_plots import gather_well_data
 from pandas.errors import SettingWithCopyWarning
@@ -140,25 +140,41 @@ def is_within_cutoff(injection_date, earthquake_date, cutoff_before_earthquake):
         return False
 
 
-def generate_distinct_colors(num_colors, colormap="tab20", exclude_indices=[4, 5]):
+def generate_distinct_colors(num_colors, colormap=None, exclude_indices=None):
     """
-    Generate a list of distinct colors using a specified matplotlib colormap, excluding unwanted colors.
+    Generate a list of visually distinct colors, guaranteed to be as many as num_colors.
+
     Parameters:
-    - num_colors: Number of distinct colors to generate.
-    - colormap: The name of the colormap to use.
-    - exclude_indices: List of indices to exclude from the colormap.
+    - num_colors: Number of distinct colors to return.
+    - colormap: (Optional) Name of a colormap. If None, it picks a good one automatically.
+    - exclude_indices: (Optional) Indices to skip (only used if colormap is discrete).
+
+    Returns:
+    - List of RGBA color tuples.
     """
+    # Auto-select colormap if not provided
+    if colormap is None:
+        colormap = "tab20" if num_colors <= 20 else "nipy_spectral"
+
     cmap = plt.get_cmap(colormap)
-    total_colors = cmap.N  # Number of colors in the colormap
+    total_colors = cmap.N if hasattr(cmap, "N") else 256  # 256 is default for continuous colormaps
 
-    # Calculate step size based on the required number of colors, skipping excluded indices
-    indices = [i for i in range(total_colors) if i not in exclude_indices]
-    step = max(1, len(indices) // num_colors)
-    selected_indices = indices[::step][:num_colors]
+    if exclude_indices is None:
+        exclude_indices = []
 
-    # Retrieve colors from selected indices
-    colors = [cmap(i / (total_colors - 1)) for i in selected_indices]
-    return colors
+    if num_colors > total_colors and colormap in ["tab10", "tab20", "Pastel1", "Set1"]:
+        raise ValueError(f"Colormap '{colormap}' only supports {total_colors} unique values.")
+
+    # Generate valid indices, skipping excluded ones if discrete
+    if hasattr(cmap, "N"):  # Discrete colormap
+        valid_indices = [i for i in range(total_colors) if i not in exclude_indices]
+        if num_colors > len(valid_indices):
+            raise ValueError(f"Cannot generate {num_colors} colors after exclusions.")
+        positions = np.linspace(0, len(valid_indices) - 1, num_colors, dtype=int)
+        return [cmap(valid_indices[i] / (total_colors - 1)) for i in positions]
+
+    else:  # Continuous colormap
+        return [cmap(i / (num_colors - 1)) for i in range(num_colors)]
 
 
 def adjust_brightness(colors, adjustment_factor=1.2):
@@ -207,6 +223,8 @@ def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some
     :param current_earthquake_index: the number earthquake that is being reviewed/iterated
     :return: cleaned_df: cleaned dataframe
     """
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Cleaning queried IVRT data to ensure injection records fall inbetween selected time range")
     api_numbers_to_remove = []
 
     some_earthquake_origin_date, cutoff_before_earthquake_date = convert_dates(some_earthquake_origin_date, year_cutoff)
@@ -217,14 +235,18 @@ def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some
     # Find all the wells who don't have a valid injection and remove from dataframe
     current_date = datetime.datetime.now()
     current_date_difference = current_date - some_earthquake_origin_date
-    # print(f"Earthquake Origin Date: {some_earthquake_origin_date}\nCutoff: {cutoff_before_earthquake_date}"
-    #       f"\nDate delta: {current_date_difference}")
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Earthquake Origin Date: {some_earthquake_origin_date} | Cutoff: {cutoff_before_earthquake_date} | Time delta: {current_date_difference}")
+
+    inj_well_removal_counter = 0  # To count how many wells were removed from the original query
     for api_number, injection_date in earliest_injection_dates.items():
+        # api_number is the index of the series
+        # injection_date is the value corresponding to that index
         if not is_within_cutoff(injection_date, (some_earthquake_origin_date + current_date_difference),
                                 cutoff_before_earthquake_date):
-            print(f"Earliest injection date for well #{api_number}, is not within cutoff of the earthquake date."
-                  f" Earliest date was: {injection_date}.\nWill omit from computation.\n"
-                  f"------------------------------------")
+            print(
+                f"\n[{datetime.datetime.now().replace(microsecond=0, second=0)}] Earliest injection date for well #{api_number}, is not within cutoff of the earthquake date. Earliest date was: {injection_date}. Will omit from computation.\n------------------------------------")
+            inj_well_removal_counter += 1
             api_numbers_to_remove.append(api_number)
     cleaned_df = closest_wells_data_df[~closest_wells_data_df['API Number'].isin(api_numbers_to_remove)]
 
@@ -247,7 +269,8 @@ def data_preperation(closest_wells_data_df, earthquake_lat, earthquake_lon, some
     cleaned_df['Well Type'] = cleaned_df['API Number'].map(well_types_map)
     # Add the 'Distance from Earthquake (km)' column based on the distances map
     cleaned_df['Distance from Earthquake (km)'] = cleaned_df['API Number'].map(distances_map)
-
+    print(
+        f"\n[{datetime.datetime.now().replace(microsecond=0, second=0)}] Successfully removed {inj_well_removal_counter}/{len(earliest_injection_dates)} injection wells that did not fit in time window.")
     return cleaned_df
 
 
@@ -256,6 +279,7 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
     # Bottomhole pressure = surface pressure + hydrostatic pressure – flowing tubing friction loss
     # Mud weight: JP Nicot, Jun Ge
 
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Calculating Daily Bottomhole Pressures (BHP) per API Number")
     deltaP = 0
     for index, row in cleaned_well_data_df.iterrows():
         api_number = row['API Number']
@@ -291,6 +315,7 @@ def calculate_total_bottomhole_pressure(cleaned_well_data_df):
         cleaned_well_data_df.loc[index, 'Bottomhole Pressure'] = total_bottomhole_pressure
         cleaned_well_data_df.loc[index, 'deltaP'] = deltaP
 
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Successfully Calculated Daily BHP per API Number")
     return cleaned_well_data_df
 
 
@@ -319,26 +344,37 @@ def prepare_calculated_bottomhole_pressure_data_from_df(finalized_df):
 
 
 def prepare_listed_pressure_data_from_df(df):
+    """
+    Returning two dictionary objects:
+    {'API123': {'TYPE': 'Disposal', datetime_obj1: pressure1,...} , and {'API123': distance from earthquake}
+    :param df:
+    :return:
+    """
     listed_pressure_data = defaultdict(dict)
     distance_data = {}
 
-    for index, row in df.iterrows():
+    for index, row in df.iterrows():  # Iterate through each row of the cleaned IVRT dataframe
         api_number = row['API Number']
         date_of_injection = row['Date of Injection']
         listed_pressure = row['Injection Pressure Average PSIG']
         well_type = row['Well Type']
         distance = row['Distance from Earthquake (km)']
 
-        # Convert date_of_injection to a datetime object
+        # Convert date_of_injection, which is a date object, to a datetime object
         if isinstance(date_of_injection, str):
             date_of_injection = datetime.datetime.strptime(date_of_injection, '%Y-%m-%d')
 
         if api_number not in listed_pressure_data:
+            # We are building this: {'API123': {'TYPE': 'Disposal', datetime_obj1: pressure1,...}
             listed_pressure_data[api_number] = {'TYPE': well_type}
-            distance_data[api_number] = distance  # Store the distance for each API number
+            distance_data[
+                api_number] = distance  # Store the distance for each API number into the distance_date dictionary
 
-        listed_pressure_data[api_number][date_of_injection] = listed_pressure
+        listed_pressure_data[api_number][
+            date_of_injection] = listed_pressure  # Add pressure on that date the given api number
 
+    # Returning a list that contains {'API123': {'TYPE': 'Disposal', datetime_obj1: pressure1,...} , and {'API123': distance from earthquake}
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Successfully extrapolated well pressure data.")
     return listed_pressure_data, distance_data
 
 
@@ -370,7 +406,7 @@ def prepare_daily_injection_data_from_df(finalized_df):
 
 
 def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, distance_data, earthquake_info,
-                                        output_directory, range_km):
+                                        output_directory, range_km, shallow_colormap, deep_colormap):
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
     deep_pressure_data = defaultdict(list)
@@ -384,13 +420,14 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
     shallow_apis = []
     deep_apis = []
 
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Generating Daily Bottomhole Pressure Plots for Shallow and Deep Wells")
     if not calculated_bottomhole_pressure_data:
         print("No data to plot.")
         return
 
     # Check if calculated_bottomhole_pressure_data is a dictionary
     if not isinstance(calculated_bottomhole_pressure_data, dict):
-        print("Invalid data format. Expected a dictionary.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid data format. Expected a dictionary.")
         return
 
     for api_number, api_data in calculated_bottomhole_pressure_data.items():
@@ -399,7 +436,7 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
             unconverted_tuple_dates, pressures = zip(*api_data.items())
             all_api_nums.append(api_number)
         except (TypeError, ValueError):
-            print(f"Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
+            print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
             continue
 
         # Use unconverted_tuple_dates directly since it's already a tuple
@@ -435,15 +472,6 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
                     shallow_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
                     append_if_unique(api_number, shallow_apis)
 
-    # Save deep well pressure data to a text file
-    deep_filename = os.path.join(output_directory,
-                                 f'deep_well_bottomhole_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
-    with open(deep_filename, 'w') as f:
-        f.write("Date\tAPI Number\tPressure (PSI)\n")
-        for date, pressure_points in deep_pressure_data.items():
-            for api_number, pressure in pressure_points:
-                f.write(f"{date}\t{api_number}\t{pressure}\n")
-
     # Save shallow well pressure data to a text file
     shallow_filename = os.path.join(output_directory,
                                     f'shallow_well_bottomhole_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
@@ -452,28 +480,22 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
         for date, pressure_points in shallow_pressure_data.items():
             for api_number, pressure in pressure_points:
                 f.write(f"{date}\t{api_number}\t{pressure}\n")
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Successfully Saved Calculated Shallow BHP data to .txt format. Saved at {shallow_filename}")
+
+    # Save deep well pressure data to a text file
+    deep_filename = os.path.join(output_directory,
+                                 f'deep_well_bottomhole_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
+    with open(deep_filename, 'w') as f:
+        f.write("Date\tAPI Number\tPressure (PSI)\n")
+        for date, pressure_points in deep_pressure_data.items():
+            for api_number, pressure in pressure_points:
+                f.write(f"{date}\t{api_number}\t{pressure}\n")
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Successfully Saved Calculated Deep BHP data to .txt format. Saved at {deep_filename}")
 
     # Combine all API numbers from shallow and deep data
     all_api_numbers = list(set(all_api_nums))
     all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
-
-    # Filter sorted_all_distances for shallow and deep, making sure to keep only unique API numbers
-    shallow_distances = [(api, distance) for api, distance in sorted_all_distances if api in shallow_apis]
-    deep_distances = [(api, distance) for api, distance in sorted_all_distances if api in deep_apis]
-
-    # Generate distinct colors using tab20
-    shallow_colors = generate_distinct_colors(len(shallow_apis), colormap="tab20")
-    deep_colors = generate_distinct_colors(len(deep_apis), colormap="tab20")
-
-    # Brighten the colors for shallow and deep
-    brightened_shallow_colors = adjust_brightness(shallow_colors, adjustment_factor=1.2)
-    brightened_deep_colors = adjust_brightness(deep_colors, adjustment_factor=1.1)
-
-    # Create color maps for API numbers
-    color_map_shallow = {api_number: color for (api_number, _), color in
-                         zip(shallow_distances, brightened_shallow_colors)}
-    color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, brightened_deep_colors)}
 
     fig, axes = plt.subplots(2, 1, figsize=(28, 20))  # Create a 2x1 grid for shallow and deep plots
 
@@ -501,11 +523,11 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (
-            f'API {api_number} ({distance} km from epi.)', distance, color_map_shallow[api_number])
+                f'API {api_number} ({distance} km from epi.)', distance, shallow_colormap[api_number])
         dates, pressures = zip(*median_pressure_points)
 
         # Plot the shallow well data points
-        ax1.plot(dates, pressures, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
+        ax1.plot(dates, pressures, marker='o', linestyle='', color=shallow_colormap[api_number], markersize=2)
 
         # Separate the data points for the category 'Only Volume Injected Provided'
         category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
@@ -535,7 +557,8 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
                                                             f'\nRange: {range_km} km'))
 
     ax1.set_title(
-        f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+        f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax1.set_ylabel('Calculated Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
     ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax1.grid(True)
@@ -557,7 +580,7 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
         valid_bps = [bp for bp in all_shallow_median_bps if np.isfinite(bp)]
 
         if not valid_bps:
-            print("No valid data points found in all_shallow_median_bps.")
+            print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No valid data points found in all_shallow_median_bps.")
         else:
             # Calculate percentiles only with valid data points
             shallow_min, shallow_max = np.percentile(valid_bps, [5, 95])
@@ -565,11 +588,11 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
 
             # Validate the calculated percentiles
             if not np.isfinite(shallow_min) or not np.isfinite(shallow_max):
-                print(f"Invalid axis limits: shallow_min={shallow_min}, shallow_max={shallow_max}")
+                print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid axis limits: shallow_min={shallow_min}, shallow_max={shallow_max}")
             else:
                 ax1.set_ylim(shallow_min, shallow_max)
     else:
-        print("No data points available to calculate shallow well pressure limits.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No data points available to calculate shallow well pressure limits.")
 
     # Set major locator and formatter to display ticks for each month
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
@@ -595,15 +618,28 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
 
     all_deep_median_bps = []
 
+    # Validate deep color map
+    missing_deep_colors = set(api_median_pressure_deep.keys()) - set(deep_colormap.keys())
+
+    # Handle missing colors for deep APIs
+    for missing_api in missing_deep_colors:
+        deep_colormap[missing_api] = "grey"  # Assign default color
+
+    # Log validation results for deep
+    if missing_deep_colors:
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Missing deep API colors handled: {missing_deep_colors}")
+    else:
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Color map for deep APIs is complete.")
+
     for api_number, median_pressure_points in api_median_pressure_deep.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (
-            f'API {api_number} ({distance} km from epi.)', distance, color_map_deep[api_number])
+                f'API {api_number} ({distance} km from epi.)', distance, deep_colormap[api_number])
         dates, pressures = zip(*median_pressure_points)
 
         # Plot the deep well data points
-        ax2.plot(dates, pressures, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+        ax2.plot(dates, pressures, marker='o', linestyle='', color=deep_colormap[api_number], markersize=2)
 
         # Separate the data points for the category 'Only Volume Injected Provided'
         category_data = cleaned_well_data_df[(cleaned_well_data_df['API Number'] == api_number) &
@@ -632,17 +668,18 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
                                                             f'\nRange: {range_km} km'))
 
     ax2.set_title(
-        f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+        f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax2.set_ylabel('Calculated Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold')
     ax2.grid(True)
     legend2 = ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
-                        title="Deep Well Information and Earthquake Details",
-                        prop={'size': 10})  # Increase handle font size
+                         title="Deep Well Information and Earthquake Details",
+                         prop={'size': 10})  # Increase handle font size
 
     # Bold the title and adjust its font size
     legend2.set_title("Deep Well Information and Earthquake Details",
-                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
+                      prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
 
     ax2.tick_params(axis='x', length=10, width=2, rotation=45)
 
@@ -692,13 +729,17 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
     shallow_apis = []
     deep_apis = []
 
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Plotting Daily Reported Well Pressure Data for both Shallow and Deep Injection Wells...")
     if not listed_pressure_data:
-        print("No data to plot.")
+        print(
+            f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] ERROR: No pressures provided, unable to generate plot. Skipping pressure plotting step...")
         return
 
     # Check if calculated_bottomhole_pressure_data is a dictionary
     if not isinstance(listed_pressure_data, dict):
-        print("Invalid data format. Expected a dictionary.")
+        print(
+            f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] ERROR: Invalid data format. Expected a dictionary.")
         return
 
     for api_number, api_data in listed_pressure_data.items():
@@ -707,7 +748,8 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
             unconverted_tuple_dates, pressures = zip(*api_data.items())
             all_api_nums.append(api_number)
         except (TypeError, ValueError):
-            print(f"Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
+            print(
+                f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] WARNING: Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
             continue
 
         # Use unconverted_tuple_dates directly since it's already a tuple
@@ -743,15 +785,6 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
                     shallow_pressure_data[date].append((api_number, pressure))  # Include API number with pressure
                     append_if_unique(api_number, shallow_apis)
 
-    # Save deep well pressure data to a text file
-    deep_filename = os.path.join(output_directory,
-                                 f'deep_well_listed_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
-    with open(deep_filename, 'w') as f:
-        f.write("Date\tAPI Number\tAverage Pressure (PSIG)\n")
-        for date, pressure_points in deep_pressure_data.items():
-            for api_number, pressure in pressure_points:
-                f.write(f"{date}\t{api_number}\t{pressure}\n")
-
     # Save shallow well pressure data to a text file
     shallow_filename = os.path.join(output_directory,
                                     f'shallow_well_listed_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
@@ -760,28 +793,24 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
         for date, pressure_points in shallow_pressure_data.items():
             for api_number, pressure in pressure_points:
                 f.write(f"{date}\t{api_number}\t{pressure}\n")
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Saved Shallow Injection Well Pressure Data into .txt format. Saved at {shallow_filename}")
+
+    # Save deep well pressure data to a text file
+    deep_filename = os.path.join(output_directory,
+                                 f'deep_well_listed_pressure_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
+    with open(deep_filename, 'w') as f:
+        f.write("Date\tAPI Number\tAverage Pressure (PSIG)\n")
+        for date, pressure_points in deep_pressure_data.items():
+            for api_number, pressure in pressure_points:
+                f.write(f"{date}\t{api_number}\t{pressure}\n")
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Saved Deep Injection Well Pressure Data into .txt format. Saved at {deep_filename}")
 
     # Combine all API numbers from shallow and deep data
     all_api_numbers = list(set(all_api_nums))
     all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
     sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
-
-    # Filter sorted_all_distances for shallow and deep, making sure to keep only unique API numbers
-    shallow_distances = [(api, distance) for api, distance in sorted_all_distances if api in shallow_apis]
-    deep_distances = [(api, distance) for api, distance in sorted_all_distances if api in deep_apis]
-
-    # Generate distinct colors using tab20
-    shallow_colors = generate_distinct_colors(len(shallow_apis), colormap="tab20")
-    deep_colors = generate_distinct_colors(len(deep_apis), colormap="tab20")
-
-    # Brighten the colors for shallow and deep
-    brightened_shallow_colors = adjust_brightness(shallow_colors, adjustment_factor=1.2)
-    brightened_deep_colors = adjust_brightness(deep_colors, adjustment_factor=1.1)
-
-    # Create color maps for API numbers
-    color_map_shallow = {api_number: color for (api_number, _), color in
-                         zip(shallow_distances, brightened_shallow_colors)}
-    color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, brightened_deep_colors)}
 
     fig, axes = plt.subplots(2, 1, figsize=(28, 20))  # Create a 2x1 grid for shallow and deep plots
 
@@ -801,15 +830,38 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
             median_pressure = np.median(pressure_values)
             if api_number not in api_median_pressure_shallow:
                 api_median_pressure_shallow[api_number] = []
+                api_median_pressure_shallow[api_number] = []
             api_median_pressure_shallow[api_number].append((date, median_pressure))
 
-    all_shallow_median_bps = []
+    # Extract unique API numbers for shallow data
+    shallow_api_numbers = {api_number for date, pressures in shallow_pressure_data.items() for api_number, _ in
+                           pressures}
 
+    # Generate colors for shallow APIs
+    shallow_colors = generate_distinct_colors(len(shallow_api_numbers))
+
+    # Create color map for shallow APIs
+    color_map_shallow = {api_number: color for api_number, color in zip(shallow_api_numbers, shallow_colors)}
+
+    # Validate shallow color map
+    missing_shallow_colors = set(api_median_pressure_shallow.keys()) - set(color_map_shallow.keys())
+
+    # Handle missing colors for shallow APIs
+    for missing_api in missing_shallow_colors:
+        color_map_shallow[missing_api] = "grey"  # Assign default color
+
+    # Log validation results for shallow
+    if missing_shallow_colors:
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Missing shallow API colors handled: {missing_shallow_colors}")
+    else:
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Shallow APIs colormap is complete.")
+
+    all_shallow_median_bps = []
     for api_number, median_pressure_points in api_median_pressure_shallow.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (
-            f'API {api_number} ({distance} km from epi.)', distance, color_map_shallow[api_number])
+                f'API {api_number} ({distance} km from epi.)', distance, color_map_shallow[api_number])
         dates, pressures = zip(*median_pressure_points)
 
         # Plot the shallow well data points
@@ -843,7 +895,8 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
                                                             f'\nRange: {range_km} km'))
 
     ax1.set_title(
-        f'Reported Daily Avg Pressures for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+        f'Reported Daily Avg Pressures for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax1.set_ylabel('Reported Average Pressure (PSIG)', fontsize=12, fontweight='bold')
     ax1.grid(True)
@@ -864,7 +917,7 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
         valid_bps = [bp for bp in all_shallow_median_bps if np.isfinite(bp)]
 
         if not valid_bps:
-            print("No valid data points found in all_shallow_median_bps.")
+            print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No valid data points found in all_shallow_median_bps.")
         else:
             # Calculate percentiles only with valid data points
             shallow_min, shallow_max = np.percentile(valid_bps, [5, 95])
@@ -872,11 +925,11 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
 
             # Validate the calculated percentiles
             if not np.isfinite(shallow_min) or not np.isfinite(shallow_max):
-                print(f"Invalid axis limits: shallow_min={shallow_min}, shallow_max={shallow_max}")
+                print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid axis limits: shallow_min={shallow_min}, shallow_max={shallow_max}")
             else:
                 ax1.set_ylim(shallow_min, shallow_max)
     else:
-        print("No data points available to calculate shallow well pressure limits.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No data points available to calculate shallow well pressure limits.")
 
     # Set major locator and formatter to display ticks for each month
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
@@ -885,28 +938,67 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
     # Plot deep well data
     ax2 = axes[1]
     api_legend_map = {}  # Reset
-    api_median_pressure_deep = {}
+    api_median_pressure_deep = {}  # Dictionary to store median pressure for each API number over a 3-day span
 
+    # Looping over each date in deep_pressure_data to collect the pressure data for each API number to compute the median pressure per API for that day
+    """
+    {
+    'API123': [1200.0, 1220.0],
+    'API456': [980.0],
+    ...
+    }
+    """
     for date, pressure_points in deep_pressure_data.items():
-        api_pressure_values = {}
+        api_pressure_values = {}  # Start a new dictionary that will contain all the pressure readings per API for the current date
         for api_number, pressure in pressure_points:
-            if api_number not in api_pressure_values:
-                api_pressure_values[api_number] = []
-            api_pressure_values[api_number].append(pressure)
+            # For each pressure point we append the pressure value to a list for that API
+            # .setdefault(api_number, []) means that if the api_number already is in api_pressure_values, use its existing list
+            # else create a new empty list for it
+            api_pressure_values.setdefault(api_number, []).append(pressure)
 
         for api_number, pressure_values in api_pressure_values.items():
+            # Calculate median pressure per each API number for that given date
             median_pressure = np.median(pressure_values)
-            if api_number not in api_median_pressure_deep:
-                api_median_pressure_deep[api_number] = []
-            api_median_pressure_deep[api_number].append((date, median_pressure))
+            # Store results to the api_median_pressure_deep
+            api_median_pressure_deep.setdefault(api_number, []).append((date, median_pressure))
 
+    # # Calculate percentage match
+    # deep_apis = {api for pressures in deep_pressure_data.values() for api, _ in pressures}
+    # median_data_apis = set(api_median_pressure_deep.keys())
+    # intersection = deep_apis & median_data_apis
+    # percent_match = (len(intersection) / len(deep_apis)) * 100 if deep_apis else 0
+    # print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Percent of deep_apis that are in median_data_apis: {percent_match:.2f}%")
+
+    # Now we only extract API numbers from deep_pressure_data and generate the colors from the keys of api_median_pressure_deep
     all_deep_median_bps = []
+    # Extract unique API numbers for deep data that had been extracted from the median pressure data to ensure all the median pressure data will be assigned a color
+    deep_median_api_numbers = set(
+        api_median_pressure_deep.keys())  # {api_number for date, pressures in deep_pressure_data.items() for api_number, _ in pressures}
+    # Generate colors for deep APIs
+    deep_colors = generate_distinct_colors(len(deep_median_api_numbers))
+    assert len(deep_median_api_numbers) == len(deep_colors), (
+        f"Mismatch in length! {len(deep_median_api_numbers)} APIs vs {len(deep_colors)} colors"
+    )
+    # Create color map for deep APIs
+    # Zip will bind two or more items together on 1 to 1 ratio based on their positioning in the item (list, dict, etc.)
+    color_map_deep = {api_number: color for api_number, color in zip(deep_median_api_numbers, deep_colors)}
+    missing_deep_colors = set(api_median_pressure_deep.keys()) - set(color_map_deep.keys())
+
+    # Handle missing colors for deep APIs
+    for missing_api in missing_deep_colors:
+        color_map_deep[missing_api] = "grey"  # Assign default color
+
+    # Log validation results for deep
+    if missing_deep_colors:
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}]Missing deep API colors handled: {missing_deep_colors}")
+    else:
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Deep APIs colormap is complete.")
 
     for api_number, median_pressure_points in api_median_pressure_deep.items():
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (
-            f'API {api_number} ({distance} km from epi.)', distance, color_map_deep[api_number])
+                f'API {api_number} ({distance} km from epi.)', distance, color_map_deep[api_number])
         dates, pressures = zip(*median_pressure_points)
 
         # Plot the deep well data points
@@ -939,17 +1031,18 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
                                                             f'\nRange: {range_km} km'))
 
     ax2.set_title(
-        f'Reported Daily Avg Pressures Used for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+        f'Reported Daily Avg Pressures Used for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
     ax2.set_ylabel('Reported Average Pressure (PSIG)', fontsize=12, fontweight='bold')
     ax2.grid(True)
     legend2 = ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
-                        title="Deep Well Information and Earthquake Details",
-                        prop={'size': 10})  # Increase handle font size
+                         title="Deep Well Information and Earthquake Details",
+                         prop={'size': 10})  # Increase handle font size
 
     # Bold the title and adjust its font size
     legend2.set_title("Deep Well Information and Earthquake Details",
-                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
+                      prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax2.tick_params(axis='x', length=10, width=2, rotation=45)
 
     # Calculate y-axis limits for deep wells using the 5th and 95th percentiles
@@ -980,10 +1073,11 @@ def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, ou
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.2)
     plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
-    print(f"Daily AVG PSIG Pressure plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Daily AVG PSIG Pressure plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
+    return color_map_shallow, color_map_deep
 
 
-def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, output_directory, range_km):
+def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, output_directory, range_km, shallow_colormap, deep_colormap):
     # Create a defaultdict to store the daily injection for each date
     daily_injection_by_date = defaultdict(float)
     deep_injection_data = defaultdict(list)
@@ -1048,15 +1142,6 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                     shallow_injection_data[date].append((api_number, injection))  # Include API number with injection
                     append_if_unique(api_number, shallow_apis)
 
-    # Save deep well injection data to a text file
-    deep_filename = os.path.join(output_directory,
-                                 f'deep_well_inj_vol_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
-    with open(deep_filename, 'w') as f:
-        f.write("Date\tAPI Number\tInjection (BBLs)\n")
-        for date, injection_points in deep_injection_data.items():
-            for api_number, injection in injection_points:
-                f.write(f"{date}\t{api_number}\t{injection}\n")
-
     # Save shallow well injection data to a text file
     shallow_filename = os.path.join(output_directory,
                                     f'shallow_well_inj_vol_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
@@ -1066,27 +1151,14 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
             for api_number, injection in injection_points:
                 f.write(f"{date}\t{api_number}\t{injection}\n")
 
-    # Combine all API numbers from shallow and deep data
-    all_api_numbers = list(set(all_api_nums))
-    all_distances = {api_number: distance_data.get(api_number, float('inf')) for api_number in all_api_numbers}
-    sorted_all_distances = sorted(all_distances.items(), key=lambda x: x[1])
-
-    # Filter sorted_all_distances for shallow and deep, making sure to keep only unique API numbers
-    shallow_distances = [(api, distance) for api, distance in sorted_all_distances if api in shallow_apis]
-    deep_distances = [(api, distance) for api, distance in sorted_all_distances if api in deep_apis]
-
-    # Generate distinct colors using tab20
-    shallow_colors = generate_distinct_colors(len(shallow_apis), colormap="tab20")
-    deep_colors = generate_distinct_colors(len(deep_apis), colormap="tab20")
-
-    # Brighten the colors for shallow and deep
-    brightened_shallow_colors = adjust_brightness(shallow_colors, adjustment_factor=1.2)
-    brightened_deep_colors = adjust_brightness(deep_colors, adjustment_factor=1.1)
-
-    # Create color maps for API numbers
-    color_map_shallow = {api_number: color for (api_number, _), color in
-                         zip(shallow_distances, brightened_shallow_colors)}
-    color_map_deep = {api_number: color for (api_number, _), color in zip(deep_distances, brightened_deep_colors)}
+    # Save deep well injection data to a text file
+    deep_filename = os.path.join(output_directory,
+                                 f'deep_well_inj_vol_data_{earthquake_info["Event ID"]}_range{range_km}km.txt')
+    with open(deep_filename, 'w') as f:
+        f.write("Date\tAPI Number\tInjection (BBLs)\n")
+        for date, injection_points in deep_injection_data.items():
+            for api_number, injection in injection_points:
+                f.write(f"{date}\t{api_number}\t{injection}\n")
 
     # Create subplots
     fig, axes = plt.subplots(2, 1, figsize=(28, 20))
@@ -1115,9 +1187,9 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (
-            f'API {api_number} ({distance} km from epi.)', distance, color_map_shallow[api_number])
+                f'API {api_number} ({distance} km from epi.)', distance, shallow_colormap[api_number])
         dates, injections = zip(*median_injection_points)
-        ax1.plot(dates, injections, marker='o', linestyle='', color=color_map_shallow[api_number], markersize=2)
+        ax1.plot(dates, injections, marker='o', linestyle='', color=shallow_colormap[api_number], markersize=2)
         all_shallow_median_injections.extend(injections)
 
     legend_handles = []
@@ -1136,7 +1208,8 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                                                             f'\nRange: {range_km} km'))
 
     ax1.set_title(
-        f'Reported Daily Injected Volumes for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+        f'Reported Daily Injected Volumes for Shallow Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax1.set_ylabel('Reported Injected Volumes (BBLs)', fontsize=12, fontweight='bold')
     ax1.set_xlabel('Date', fontsize=12, fontweight='bold')
     legend = ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
@@ -1179,9 +1252,9 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
         if api_number not in api_legend_map:
             distance = distance_data.get(api_number, 'N/A')
             api_legend_map[api_number] = (
-            f'API {api_number} ({distance} km from epi.)', distance, color_map_deep[api_number])
+                f'API {api_number} ({distance} km from epi.)', distance, deep_colormap[api_number])
         dates, injections = zip(*median_injection_points)
-        ax2.plot(dates, injections, marker='o', linestyle='', color=color_map_deep[api_number], markersize=2)
+        ax2.plot(dates, injections, marker='o', linestyle='', color=deep_colormap[api_number], markersize=2)
         all_deep_median_injections.extend(injections)
 
     legend_handles = []
@@ -1200,16 +1273,17 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
                                                             f'\nRange: {range_km} km'))
 
     ax2.set_title(
-        f'Reported Daily Injected Volumes with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+        f'Reported Daily Injected Volumes with Moving Avg for Deep Wells near event_{earthquake_info["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax2.set_ylabel('Reported Injected Volumes (BBLs)', fontsize=12, fontweight='bold')
     ax2.set_xlabel('Date', fontsize=12, fontweight='bold')
     legend2 = ax2.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1, 1), fontsize=10, ncol=2,
-                        title="Deep Well Information and Earthquake Details",
-                        prop={'size': 10})  # Increase handle font size
+                         title="Deep Well Information and Earthquake Details",
+                         prop={'size': 10})  # Increase handle font size
 
     # Bold the title and adjust its font size
     legend2.set_title("Deep Well Information and Earthquake Details",
-                     prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
+                      prop={'size': 12, 'weight': 'bold'})  # Title font size and bold
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax2.tick_params(axis='x', length=10, width=2, rotation=45)
@@ -1234,6 +1308,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
 
 def create_well_histogram_per_api(cleaned_well_data_df, range_km, earthquake_info, output_directory=None):
     # Convert 'Date of Injection' to datetime
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Generating Injection Well Quality Control based on Reported Injection Well Data from the IVRT")
     cleaned_well_data_df['Date of Injection'] = pd.to_datetime(cleaned_well_data_df['Date of Injection'],
                                                                errors='coerce')
     pd.set_option('display.max_columns', None)  # This ensures all columns are printed
@@ -1291,10 +1366,11 @@ def create_well_histogram_per_api(cleaned_well_data_df, range_km, earthquake_inf
         fig, ax = plt.subplots(figsize=(16, 10))
         monthly_totals.plot(kind='bar', stacked=True, ax=ax)
         ax.set_title(
-            f'Well Data for API #{api_number} ({distance_from_earthquake} KM away from {earthquake_info["Event ID"]}) (Total Records: {total_sum})', fontsize=12, fontweight='bold')
+            f'Well Data for API #{api_number} ({distance_from_earthquake} KM away from {earthquake_info["Event ID"]}) (Total Records: {total_sum})',
+            fontsize=12, fontweight='bold')
         ax.set_xlabel('Month-Year', fontsize=12, fontweight='bold')
         ax.set_ylabel('Days', fontsize=12, fontweight='bold')
-        ax.legend(legend_labels, title='Category', loc='upper right')
+        ax.legend(legend_labels, title='Category', loc='upper left', bbox_to_anchor=(1, 1))
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
         plt.tight_layout()
 
@@ -1306,11 +1382,12 @@ def create_well_histogram_per_api(cleaned_well_data_df, range_km, earthquake_inf
             plt.savefig(plot_filename, dpi=300, bbox_inches='tight', format='png')
             plt.close()
 
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Successfully created and saved all QC Well Histograms. Stored at {output_directory}")
     return histograms
 
 
 if len(sys.argv) > 1:
-    if sys.argv[1] == '0':
+    if sys.argv[1] == 'b3':
         """
         B3 CODE 
         """
@@ -1357,62 +1434,75 @@ if len(sys.argv) > 1:
 
         quit()
 
-    elif sys.argv[1] == '1':
+    elif sys.argv[1] == 'ivrt':
         """
         CATALOG CODE
         """
         # Prompt user to input the output directory file path
-        output_dir = input("Enter the output directory file path: ")
+        output_dir = input(
+            f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Please enter an file path you would like to store all injection well information under: ")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        print("Click on the following link to fetch earthquake data:")
+        print(
+            f"\n[{datetime.datetime.now().replace(microsecond=0, second=0)}] Click on the following link to fetch earthquake data:\n")
         earthquake_info_url = "http://scdb.beg.utexas.edu/fdsnws/event/1/builder"
         print(earthquake_info_url)
 
         webbrowser.open(earthquake_info_url)
-        csv_data = input("Enter the earthquake data in CSV format: ")
+        csv_data = input(
+            f"\n[{datetime.datetime.now().replace(microsecond=0, second=0)}] Please enter the selected earthquake in CSV format: ")
 
         earthquake_info = get_earthquake_info_from_csv(csv_data)
 
-        print(f"\nInformation about the current earthquake:")
+        print(
+            f"\n[{datetime.datetime.now().replace(microsecond=0, second=0)}] Information about the earthquake {earthquake_info['Event ID']}:")
         print(earthquake_info, "\n")
         earthquake_latitude = earthquake_info['Latitude']
         earthquake_longitude = earthquake_info['Longitude']
         earthquake_origin_date = earthquake_info['Origin Date']
 
         # User-provided values for range_km
-        range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
-        year_cutoff = int(input("\nEnter the year cutoff you would like to analyze prior to "
-                                "the earthquake: (E.g. 5 yrs): "))
+        range_km = float(input(
+            f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Please enter your search radius in kilometers (E.g. 20km): "))
+        year_cutoff = int(input(
+            f"\n[{datetime.datetime.now().replace(microsecond=0, second=0)}] Please enter the year cutoff you would like to analyze prior to "
+            "the earthquake: (E.g. 5 yrs): "))
         closest_well_data_df = closest_wells_to_earthquake(center_lat=earthquake_latitude,
                                                            center_lon=earthquake_longitude,
                                                            radius_km=range_km)
+        if closest_well_data_df is None:
+            # If the DF returned is empty, exit code cleanly and safely.
+            quit()
 
         strawn_formation_data = pd.read_csv(STRAWN_FORMATION_DATA_FILE_PATH, delimiter=',')
         cleaned_well_data_df = data_preperation(closest_well_data_df, earthquake_latitude, earthquake_longitude,
                                                 earthquake_origin_date, strawn_formation_data, year_cutoff)
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Successfully cleaned IVRT data")
 
         output_file = f'{output_dir}/ivrt_cleaned_well_data.csv'
         output_file2 = f'{output_dir}/ivrt_finalized_well_data.csv'
 
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Saving cleaned IVRT data to CSV")
         cleaned_well_data_df.to_csv(output_file, index=False)
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Saved cleaned IVRT data to {output_file}")
 
         listed_pressure_data, distance_data3 = prepare_listed_pressure_data_from_df(df=cleaned_well_data_df)
-        plot_daily_pressure(listed_pressure_data, distance_data3, earthquake_info, output_dir, range_km)
+        shallow_colormap, deep_colormap = plot_daily_pressure(listed_pressure_data, distance_data3, earthquake_info, output_dir, range_km)
 
         histograms = create_well_histogram_per_api(cleaned_well_data_df, range_km, earthquake_info, output_dir)
         finalized_df = calculate_total_bottomhole_pressure(cleaned_well_data_df=cleaned_well_data_df)
 
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Saving Dataframe Containing BHP to CSV file")
         finalized_df.to_csv(output_file2, index=False)
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Successfully Saved BHP CSV to {output_file2}")
 
-        calculated_bottomhole_pressure_data, distance_data = prepare_calculated_bottomhole_pressure_data_from_df(
-            finalized_df)
+        calculated_bottomhole_pressure_data, distance_data = prepare_calculated_bottomhole_pressure_data_from_df(finalized_df=finalized_df)
         daily_injection_data, distance_data2 = prepare_daily_injection_data_from_df(finalized_df)
 
         plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, distance_data, earthquake_info,
-                                            output_dir, range_km)
-        plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, output_dir, range_km)
+                                            output_dir, range_km, shallow_colormap, deep_colormap)
+        plot_daily_injection(daily_injection_data, distance_data2, earthquake_info, output_dir, range_km, shallow_colormap, deep_colormap)
         create_indiv_subplot_dirs(base_dir=output_dir)
         gather_well_data(base_path=output_dir, csv_file=output_file, earthquake_info=earthquake_info)
 
@@ -1420,9 +1510,7 @@ if len(sys.argv) > 1:
         plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir, range_km)
         plot_calculated_bottomhole_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir,
                                                        range_km, finalized_df)
-
-        quit()
     else:
-        print("Invalid input. Please enter '0' or '1'.")
+        print("Invalid input. Please enter 'b3' or 'ivrt'.")
 else:
-    print("Please provide an input argument ('0' or '1').")
+    print("Please provide an input argument ('b3' or 'ivrt').")
