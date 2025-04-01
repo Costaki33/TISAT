@@ -60,7 +60,7 @@ def append_if_unique(item, target_list):
 
 
 def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthquake_info, output_directory, range_km, shallow_colormap, deep_colormap):
-    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Generating Daily Injection Volume Plot with Moving Average")
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Generating Daily Injection Volume Plot with Moving Average")
     # Create a defaultdict to store the daily injection for each date
     daily_injection_by_date = defaultdict(float)
     deep_injection_data = defaultdict(list)
@@ -75,12 +75,12 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
     deep_apis = []
 
     if not daily_injection_data:
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No data to plot.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] No data to plot.")
         return
 
     # Check if daily_injection_data is a dictionary
     if not isinstance(daily_injection_data, dict):
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid data format. Expected a dictionary.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] Invalid data format. Expected a dictionary.")
         return
 
     for api_number, api_data in daily_injection_data.items():
@@ -89,7 +89,7 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
             unconverted_tuple_dates, injections = zip(*api_data.items())
             all_api_nums.append(api_number)
         except (TypeError, ValueError):
-            print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
+            print(f"[{datetime.datetime.now().replace(microsecond=0)}] Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
             continue
 
         # Use unconverted_tuple_dates directly since it's already a tuple
@@ -192,8 +192,18 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
         legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax1.get_xlim()
-    if x_min <= origin_date_num <= x_max:
-        ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    if not (x_min <= origin_date_num <= x_max):
+        x_min = min(x_min, origin_date_num)
+        x_max = max(x_max, origin_date_num)
+
+        # Add a margin (e.g., 2% of the total range) to the right side if the origin date does not fall within the bounds
+        # May not fall within bounds if the reported data does not include plots past the earthquake time
+        # May be due to under-reporting
+        range_x = x_max - x_min
+        margin = range_x * 0.02
+        ax1.set_xlim(x_min, x_max + margin)
+    # Always draw the vertical line
+    ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
@@ -302,8 +312,18 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
         legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax2.get_xlim()
-    if x_min <= origin_date_num <= x_max:
-        ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    if not (x_min <= origin_date_num <= x_max):
+        x_min = min(x_min, origin_date_num)
+        x_max = max(x_max, origin_date_num)
+
+        # Add a margin (e.g., 2% of the total range) to the right side if the origin date does not fall within the bounds
+        # May not fall within bounds if the reported data does not include plots past the earthquake time
+        # May be due to under-reporting
+        range_x = x_max - x_min
+        margin = range_x * 0.02
+        ax2.set_xlim(x_min, x_max + margin)
+    # Always draw the vertical line
+    ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
@@ -341,11 +361,11 @@ def plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthqu
     plt.close()
 
     print(
-        f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Daily injection with Moving Avg plots Successfully Created and Saved.")
+        f"[{datetime.datetime.now().replace(microsecond=0)}] Daily injection with Moving Avg plots Successfully Created and Saved.")
 
 
 def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_directory, range_km, shallow_colormap, deep_colormap):
-    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Generating Daily Reported Pressure Plot with Moving Average.")
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Generating Daily Reported Pressure Plot with Moving Average.")
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
     deep_pressure_data = defaultdict(list)
@@ -360,12 +380,12 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
     deep_apis = []
 
     if not listed_pressure_data:
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No data to plot.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] No data to plot.")
         return
 
     # Check if total_pressure_data is a dictionary
     if not isinstance(listed_pressure_data, dict):
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid data format. Expected a dictionary.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] Invalid data format. Expected a dictionary.")
         return
 
     for api_number, api_data in listed_pressure_data.items():
@@ -374,7 +394,7 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
             unconverted_tuple_dates, pressures = zip(*api_data.items())
             all_api_nums.append(api_number)
         except (TypeError, ValueError):
-            print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
+            print(f"[{datetime.datetime.now().replace(microsecond=0)}] Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
             continue
 
         # Use unconverted_tuple_dates directly since it's already a tuple
@@ -469,8 +489,18 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
         legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax1.get_xlim()
-    if x_min <= origin_date_num <= x_max:
-        ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    if not (x_min <= origin_date_num <= x_max):
+        x_min = min(x_min, origin_date_num)
+        x_max = max(x_max, origin_date_num)
+
+        # Add a margin (e.g., 2% of the total range) to the right side if the origin date does not fall within the bounds
+        # May not fall within bounds if the reported data does not include plots past the earthquake time
+        # May be due to under-reporting
+        range_x = x_max - x_min
+        margin = range_x * 0.02
+        ax1.set_xlim(x_min, x_max + margin)
+    # Always draw the vertical line
+    ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
@@ -500,7 +530,7 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
         valid_bps = [bp for bp in all_shallow_median_bps if np.isfinite(bp)]
 
         if not valid_bps:
-            print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No valid data points found in all_shallow_median_bps.")
+            print(f"[{datetime.datetime.now().replace(microsecond=0)}] No valid data points found in all_shallow_median_bps.")
         else:
             # Calculate percentiles only with valid data points
             shallow_min, shallow_max = np.percentile(valid_bps, [5, 95])
@@ -508,11 +538,11 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
 
             # Validate the calculated percentiles
             if not np.isfinite(shallow_min) or not np.isfinite(shallow_max):
-                print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid axis limits: shallow_min={shallow_min}, shallow_max={shallow_max}")
+                print(f"[{datetime.datetime.now().replace(microsecond=0)}] Invalid axis limits: shallow_min={shallow_min}, shallow_max={shallow_max}")
             else:
                 ax1.set_ylim(shallow_min, shallow_max)
     else:
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No data points available to calculate shallow well pressure limits.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] No data points available to calculate shallow well pressure limits.")
 
     # Set major locator and formatter to display ticks for each month
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
@@ -573,8 +603,18 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
         legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax2.get_xlim()
-    if x_min <= origin_date_num <= x_max:
-        ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    if not (x_min <= origin_date_num <= x_max):
+        x_min = min(x_min, origin_date_num)
+        x_max = max(x_max, origin_date_num)
+
+        # Add a margin (e.g., 2% of the total range) to the right side if the origin date does not fall within the bounds
+        # May not fall within bounds if the reported data does not include plots past the earthquake time
+        # May be due to under-reporting
+        range_x = x_max - x_min
+        margin = range_x * 0.02
+        ax2.set_xlim(x_min, x_max + margin)
+    # Always draw the vertical line
+    ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
@@ -608,9 +648,9 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
             deep_min, deep_max = np.percentile(filtered_data, [5, 95])
             ax2.set_ylim(deep_min, deep_max)
         else:
-            print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] WARNING: No valid data available after removing NaNs. Cannot set axis limits.")
+            print(f"[{datetime.datetime.now().replace(microsecond=0)}] WARNING: No valid data available after removing NaNs. Cannot set axis limits.")
     else:
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] ERROR: No deep median bps data available.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] ERROR: No deep median bps data available.")
 
     # Set major locator and formatter to display ticks for each month
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
@@ -623,12 +663,12 @@ def plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthqua
     plt.subplots_adjust(hspace=0.2)
 
     plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
-    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Daily Avg PSIG Pressure plots with Moving Avg Successfully Created and Saved.")
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Daily Avg PSIG Pressure plots with Moving Avg Successfully Created and Saved.")
 
 
 def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressure_data, distance_data, earthquake_info, output_directory, range_km, cleaned_well_data_df, shallow_colormap, deep_colormap):
     print(
-        f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Generating Calcualted Daily Bottomhole Pressure (BHP) with Moving Average")
+        f"[{datetime.datetime.now().replace(microsecond=0)}] Generating Calcualted Daily Bottomhole Pressure (BHP) with Moving Average")
     # Create a defaultdict to store the total pressure for each date
     total_pressure_by_date = defaultdict(float)
     deep_pressure_data = defaultdict(list)
@@ -643,12 +683,12 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
     deep_apis = []
 
     if not calculated_bottomhole_pressure_data:
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No data to plot.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] No data to plot.")
         return
 
     # Check if calculated_bottomhole_pressure_data is a dictionary
     if not isinstance(calculated_bottomhole_pressure_data, dict):
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid data format. Expected a dictionary.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] Invalid data format. Expected a dictionary.")
         return
 
     for api_number, api_data in calculated_bottomhole_pressure_data.items():
@@ -657,7 +697,7 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
             unconverted_tuple_dates, pressures = zip(*api_data.items())
             all_api_nums.append(api_number)
         except (TypeError, ValueError):
-            print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
+            print(f"[{datetime.datetime.now().replace(microsecond=0)}] Invalid data format for API {api_number}. Expected dictionary keys to be datetime tuples.")
             continue
 
         # Use unconverted_tuple_dates directly since it's already a tuple
@@ -768,8 +808,18 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
         legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax1.get_xlim()
-    if x_min <= origin_date_num <= x_max:
-        ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    if not (x_min <= origin_date_num <= x_max):
+        x_min = min(x_min, origin_date_num)
+        x_max = max(x_max, origin_date_num)
+
+        # Add a margin (e.g., 2% of the total range) to the right side if the origin date does not fall within the bounds
+        # May not fall within bounds if the reported data does not include plots past the earthquake time
+        # May be due to under-reporting
+        range_x = x_max - x_min
+        margin = range_x * 0.02
+        ax1.set_xlim(x_min, x_max + margin)
+    # Always draw the vertical line
+    ax1.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
@@ -798,7 +848,7 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
         valid_bps = [bp for bp in all_shallow_median_bps if np.isfinite(bp)]
 
         if not valid_bps:
-            print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No valid data points found in all_shallow_median_bps.")
+            print(f"[{datetime.datetime.now().replace(microsecond=0)}] No valid data points found in all_shallow_median_bps.")
         else:
             # Calculate percentiles only with valid data points
             shallow_min, shallow_max = np.percentile(valid_bps, [5, 95])
@@ -806,11 +856,11 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
 
             # Validate the calculated percentiles
             if not np.isfinite(shallow_min) or not np.isfinite(shallow_max):
-                print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Invalid axis limits: shallow_min={shallow_min}, shallow_max={shallow_max}")
+                print(f"[{datetime.datetime.now().replace(microsecond=0)}] Invalid axis limits: shallow_min={shallow_min}, shallow_max={shallow_max}")
             else:
                 ax1.set_ylim(shallow_min, shallow_max)
     else:
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No data points available to calculate shallow well pressure limits.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] No data points available to calculate shallow well pressure limits.")
 
     # Set major locator and formatter to display ticks for each month
     ax1.xaxis.set_major_locator(mdates.MonthLocator())
@@ -889,8 +939,18 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
         legend_handles.append(Line2D([0], [0], marker='o', color='black', markerfacecolor=color, label=legend_label))
 
     x_min, x_max = ax2.get_xlim()
-    if x_min <= origin_date_num <= x_max:
-        ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
+    if not (x_min <= origin_date_num <= x_max):
+        x_min = min(x_min, origin_date_num)
+        x_max = max(x_max, origin_date_num)
+
+        # Add a margin (e.g., 2% of the total range) to the right side if the origin date does not fall within the bounds
+        # May not fall within bounds if the reported data does not include plots past the earthquake time
+        # May be due to under-reporting
+        range_x = x_max - x_min
+        margin = range_x * 0.02
+        ax2.set_xlim(x_min, x_max + margin)
+    # Always draw the vertical line
+    ax2.axvline(x=origin_date_num, color='red', linestyle='--', zorder=2)
     legend_handles.append(Line2D([0], [0], color='red', linestyle='--', label=f'Earthquake Event: {earthquake_info["Event ID"]}'
                                                                               f'\nOrigin Time: {origin_time}'
                                                                               f'\nOrigin Date: {origin_date_str}'
@@ -924,9 +984,9 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
             deep_min, deep_max = np.percentile(filtered_data, [5, 95])
             ax2.set_ylim(deep_min, deep_max)
         else:
-            print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] WARNING: No valid data available after removing NaNs. Cannot set axis limits.")
+            print(f"[{datetime.datetime.now().replace(microsecond=0)}] WARNING: No valid data available after removing NaNs. Cannot set axis limits.")
     else:
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No deep median bps data available.")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] No deep median bps data available.")
 
     # Set major locator and formatter to display ticks for each month
     ax2.xaxis.set_major_locator(mdates.MonthLocator())
@@ -939,4 +999,4 @@ def plot_calculated_bottomhole_pressure_moving_avg(calculated_bottomhole_pressur
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.2)
     plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
-    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Daily Calculated BHP Plots Successfully Created and Saved.")
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Daily Calculated BHP Plots Successfully Created and Saved.")

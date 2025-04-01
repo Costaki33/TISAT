@@ -11,4 +11,4 @@ def create_indiv_subplot_dirs(base_dir: str):
     for subfolder in subfolders:
         subfolder_path = os.path.join(base_directory, subfolder)
         os.makedirs(subfolder_path, exist_ok=True)
-        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Created: {subfolder_path}")
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] Created: {subfolder_path}")
