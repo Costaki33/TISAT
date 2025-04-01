@@ -712,7 +712,7 @@ def plot_calculated_bottomhole_pressure(calculated_bottomhole_pressure_data, dis
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.2)
     plt.savefig(output_filename, dpi=300, bbox_inches='tight', format='png')
-    print(f"Daily bottomhole plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Daily bottomhole plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
 def plot_daily_pressure(listed_pressure_data, distance_data, earthquake_info, output_directory, range_km):
@@ -1303,7 +1303,7 @@ def plot_daily_injection(daily_injection_data, distance_data, earthquake_info, o
     plt.savefig(output_file_path, dpi=300, bbox_inches='tight', format='png')
     plt.close()
 
-    print(f"Daily injection plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Daily injection plots for earthquake: {earthquake_info['Event ID']} were successfully created.")
 
 
 def create_well_histogram_per_api(cleaned_well_data_df, range_km, earthquake_info, output_directory=None):
@@ -1455,9 +1455,11 @@ if len(sys.argv) > 1:
 
         earthquake_info = get_earthquake_info_from_csv(csv_data)
 
-        print(
-            f"\n[{datetime.datetime.now().replace(microsecond=0, second=0)}] Information about the earthquake {earthquake_info['Event ID']}:")
-        print(earthquake_info, "\n")
+        print(f"\n[{datetime.datetime.now().replace(microsecond=0, second=0)}] Information about {earthquake_info['Event ID']}:")
+        for key, value in earthquake_info.items():
+            print(f"    {key}: {value}")  # 4 spaces are there for printing intention
+        print("\n")
+
         earthquake_latitude = earthquake_info['Latitude']
         earthquake_longitude = earthquake_info['Longitude']
         earthquake_origin_date = earthquake_info['Origin Date']
@@ -1506,10 +1508,10 @@ if len(sys.argv) > 1:
         create_indiv_subplot_dirs(base_dir=output_dir)
         gather_well_data(base_path=output_dir, csv_file=output_file, earthquake_info=earthquake_info)
 
-        plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthquake_info, output_dir, range_km)
-        plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir, range_km)
+        plot_daily_injection_moving_avg(daily_injection_data, distance_data, earthquake_info, output_dir, range_km, shallow_colormap, deep_colormap)
+        plot_daily_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir, range_km, shallow_colormap, deep_colormap)
         plot_calculated_bottomhole_pressure_moving_avg(listed_pressure_data, distance_data, earthquake_info, output_dir,
-                                                       range_km, finalized_df)
+                                                       range_km, finalized_df, shallow_colormap, deep_colormap)
     else:
         print("Invalid input. Please enter 'b3' or 'ivrt'.")
 else:

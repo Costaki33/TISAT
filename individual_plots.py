@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 from matplotlib.dates import MonthLocator, DateFormatter
 
 
-def plot_injection_data(file_path, output_directory, csv_file, earthquake_info):
+def plot_injection_data(file_path, output_directory, csv_file, earthquake_info, well_type):
     try:
         # Read the data from the text file
         data = pd.read_csv(file_path, sep='\t')
@@ -32,6 +32,7 @@ def plot_injection_data(file_path, output_directory, csv_file, earthquake_info):
 
         # Get the unique API numbers
         api_numbers = data['API Number'].unique()
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Creating Individual Injection Volume Plots for {len(api_numbers)} {well_type} Wells")
 
         # Create individual scatter plots for each API number
         for api_number in api_numbers:
@@ -44,7 +45,7 @@ def plot_injection_data(file_path, output_directory, csv_file, earthquake_info):
             elif 'APINumber' in well_info_df.columns:
                 distance_row = well_info_df[well_info_df['APINumber'] == api_number]
             else:
-                print("No API column found in well_info_df.")
+                print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No API column found in well_info_df.")
                 distance_row = pd.DataFrame()  # Empty DataFrame if neither column exists
             if not distance_row.empty:
                 distance = distance_row['Distance from Earthquake (km)'].values[0]
@@ -98,11 +99,12 @@ def plot_injection_data(file_path, output_directory, csv_file, earthquake_info):
             plot_file_path = os.path.join(output_directory, f'{api_number}_injection_vol_plot.png')
             plt.savefig(plot_file_path, dpi=300, bbox_inches='tight', format='png')
             plt.close()
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Successfully Created {len(api_numbers)} {well_type} Injection Volume Well Plots. Plots are stored at {output_directory}")
     except Exception as e:
-        print(f"An error occurred while processing {file_path}: {e}")
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] ERROR: An error occurred while processing {file_path}: {e}")
 
 
-def plot_pressure_data(file_path, output_directory, csv_file, earthquake_info):
+def plot_pressure_data(file_path, output_directory, csv_file, earthquake_info, well_type):
     try:
         # Read the data from the text file
         data = pd.read_csv(file_path, sep='\t')
@@ -126,7 +128,7 @@ def plot_pressure_data(file_path, output_directory, csv_file, earthquake_info):
 
         # Get the unique API numbers
         api_numbers = data['API Number'].unique()
-
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Creating Individual Injection Pressure Plots for {len(api_numbers)} {well_type} Wells")
         # Create individual scatter plots for each API number
         for api_number in api_numbers:
             api_data = data[data['API Number'] == api_number]
@@ -138,7 +140,7 @@ def plot_pressure_data(file_path, output_directory, csv_file, earthquake_info):
             elif 'APINumber' in well_info_df.columns:
                 distance_row = well_info_df[well_info_df['APINumber'] == api_number]
             else:
-                print("No API column found in well_info_df.")
+                print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] No API column found in well_info_df.")
                 distance_row = pd.DataFrame()  # Empty DataFrame if neither column exists
             if not distance_row.empty:
                 distance = distance_row['Distance from Earthquake (km)'].values[0]
@@ -192,8 +194,9 @@ def plot_pressure_data(file_path, output_directory, csv_file, earthquake_info):
             plot_file_path = os.path.join(output_directory, f'{api_number}_injection_pressure_plot.png')
             plt.savefig(plot_file_path, dpi=300, bbox_inches='tight', format='png')
             plt.close()
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Successfully Created {len(api_numbers)} {well_type} Injection Pressure Well Plots. Plots are stored at {output_directory}")
     except Exception as e:
-        print(f"An error occurred while processing {file_path}: {e}")
+        print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] An error occurred while processing {file_path}: {e}")
 
 
 def modify_string(abbreviation, range_):
@@ -234,10 +237,10 @@ def gather_well_data(base_path: str, csv_file: str, earthquake_info: dict):
 
     if os.path.isfile(shallow_file_path):
         shallow_output_directory = os.path.join(base_path, 'shallow_individual_plots')
-        plot_injection_data(shallow_file_path, shallow_output_directory, csv_file, earthquake_info)
-        plot_pressure_data(shallow_pressure_fp, shallow_output_directory, csv_file, earthquake_info)
+        plot_injection_data(shallow_file_path, shallow_output_directory, csv_file, earthquake_info, "Shallow")
+        plot_pressure_data(shallow_pressure_fp, shallow_output_directory, csv_file, earthquake_info, "Shallow")
     if os.path.isfile(deep_file_path):
         deep_output_directory = os.path.join(base_path, 'deep_individual_plots')
-        plot_injection_data(deep_file_path, deep_output_directory, csv_file, earthquake_info)
-        plot_pressure_data(deep_pressure_fp, deep_output_directory, csv_file, earthquake_info)
-    print("Created individual well subplots")
+        plot_injection_data(deep_file_path, deep_output_directory, csv_file, earthquake_info, "Deep")
+        plot_pressure_data(deep_pressure_fp, deep_output_directory, csv_file, earthquake_info, "Deep")
+    print(f"[{datetime.datetime.now().replace(microsecond=0, second=0)}] Created individual well subplots")
