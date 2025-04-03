@@ -159,10 +159,13 @@ def clean_csv(b3csv: csv, earthquake_information: dict, strawn_formation_info: s
     elif 'StartOfMon' in b3df.columns:
         b3df['StartOfMon'] = pd.to_datetime(b3df['StartOfMon']).dt.normalize()
 
-    # Now we remove all the rows who's StartOfMonthDate falls within the cutoff time
-
+    # Now we remove all the rows who's StartOfMonthDate falls within the cutoff time  (eq_time + 180 days)
     earthquake_time = earthquake_information['Origin Date']
-    b3df = b3df[b3df['StartOfMonthDate'] <= earthquake_time]
+    earthquake_time = datetime.datetime.strptime(earthquake_time, '%Y-%m-%d')
+    buffer_post_earthquake_time = (earthquake_time + datetime.timedelta(days=180))
+
+    b3df = b3df[b3df['StartOfMonthDate'] <= buffer_post_earthquake_time]
+    # print("\nLatest date in df after filtering:", b3df['StartOfMonthDate'].max())
 
     well_types_map = {}
     for index, row in b3df.iterrows():
@@ -354,11 +357,19 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
 
     # Plot for shallow well data
     shallow_scatter_colors = {}
+    shallow_dates = []
     for api_number, pressure_points in shallow_pressure_data.items():
         dates, pressures, labels, colors = zip(*pressure_points)
         # scatter = ax1.plot(dates, pressures, label=labels[0], marker='o', linestyle='', markersize=2)
         scatter = ax1.scatter(dates, pressures, label=labels[0], s=4)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
+        shallow_dates.extend(dates)
+
+    if shallow_dates:
+        min_date = min(shallow_dates)
+        max_date = max(shallow_dates)
+        ax1.set_xlim(min_date, max_date)
+
     ax1.set_title(
         f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
         fontsize=14, fontweight='bold')
@@ -367,11 +378,19 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
 
     # Plot for deep well data
     deep_scatter_colors = {}
+    deep_dates = []
     for api_number, pressure_points in deep_pressure_data.items():
         dates, pressures, labels, colors = zip(*pressure_points)
         # scatter = ax2.plot(dates, pressures, label=labels[0], marker='o', linestyle='', markersize=2)
         scatter = ax2.scatter(dates, pressures, label=labels[0], s=4)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
+        deep_dates.extend(dates)
+
+    if deep_dates:
+        min_date = min(deep_dates)
+        max_date = max(deep_dates)
+        ax2.set_xlim(min_date, max_date)
+
     ax2.set_title(
         f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
         fontsize=14, fontweight='bold')
@@ -559,11 +578,19 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
 
     # Plot for shallow well data
     shallow_scatter_colors = {}
+    shallow_dates = []
     for api_number, injection_points in shallow_injection_data.items():
         dates, injections, labels, colors = zip(*injection_points)
         # scatter = ax1.plot(dates, injections, label=labels[0], marker='o', linestyle='', markersize=2)
         scatter = ax1.scatter(dates, injections, label=labels[0], s=4)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
+        shallow_dates.extend(dates)
+
+    if shallow_dates:
+        min_date = min(shallow_dates)
+        max_date = max(shallow_dates)
+        ax1.set_xlim(min_date, max_date)
+
     ax1.set_title(
         f'Reported Monthly Injected Volumes for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
         fontsize=14, fontweight='bold')
@@ -572,11 +599,19 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
 
     # Plot for deep well data
     deep_scatter_colors = {}
+    deep_dates = []
     for api_number, injection_points in deep_injection_data.items():
         dates, injections, labels, colors = zip(*injection_points)
         # scatter = ax2.plot(dates, injections, label=labels[0], marker='o', linestyle='', markersize=2)
         scatter = ax2.scatter(dates, injections, label=labels[0], s=4)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
+        deep_dates.extend(dates)
+
+    if deep_dates:
+        min_date = min(deep_dates)
+        max_date = max(deep_dates)
+        ax2.set_xlim(min_date, max_date)
+
     ax2.set_title(
         f'Reported Monthly Injected Volumes for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
         fontsize=14, fontweight='bold')
@@ -758,16 +793,23 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
 
         api_color_map[api_number] = color
 
-
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(28, 20))
 
     # Plot for shallow well pressure data
     shallow_scatter_colors = {}
+    shallow_dates = []
     for api_number, injection_points in shallow_injection_data.items():
         dates, pressures, labels, colors = zip(*injection_points)
         # scatter = ax1.plot(dates, pressures, label=labels[0], marker='o', linestyle='', markersize=2)
         scatter = ax1.scatter(dates, pressures, label=labels[0], s=4)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
+        shallow_dates.extend(dates)
+
+    if shallow_dates:
+        min_date = min(shallow_dates)
+        max_date = max(shallow_dates)
+        ax1.set_xlim(min_date, max_date)
+
     ax1.set_title(
         f'Reported Monthly Pressures Used for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
         fontsize=14, fontweight='bold')
@@ -776,11 +818,19 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
 
     # Plot for deep well pressure data
     deep_scatter_colors = {}
+    deep_dates = []
     for api_number, injection_points in deep_injection_data.items():
         dates, pressures, labels, colors = zip(*injection_points)
         # scatter = ax2.plot(dates, pressures, label=labels[0], marker='o', linestyle='', markersize=2)
         scatter = ax2.scatter(dates, pressures, label=labels[0], s=4)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
+        deep_dates.extend(dates)
+
+    if deep_dates:
+        min_date = min(deep_dates)
+        max_date = max(shallow_dates)
+        ax2.set_xlim(min_date, max_date)
+
     ax2.set_title(
         f'Reported Monthly Pressures Used for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
         fontsize=14, fontweight='bold')
@@ -906,6 +956,7 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
         label.set_rotation(45)
         label.set_ha('center')
 
+    # Make the two plots x ticks look like the ones for the ivrt plots
     ax1.tick_params(axis='x', direction='out', length=10, width=2, colors='black')
     ax1.tick_params(axis='y', direction='out', length=10, width=2, colors='black')
 
