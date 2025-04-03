@@ -160,6 +160,7 @@ def clean_csv(b3csv: csv, earthquake_information: dict, strawn_formation_info: s
         b3df['StartOfMon'] = pd.to_datetime(b3df['StartOfMon']).dt.normalize()
 
     # Now we remove all the rows who's StartOfMonthDate falls within the cutoff time
+
     earthquake_time = earthquake_information['Origin Date']
     b3df = b3df[b3df['StartOfMonthDate'] <= earthquake_time]
 
@@ -355,7 +356,8 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
     shallow_scatter_colors = {}
     for api_number, pressure_points in shallow_pressure_data.items():
         dates, pressures, labels, colors = zip(*pressure_points)
-        scatter = ax1.scatter(dates, pressures, label=labels[0], s=12)
+        # scatter = ax1.plot(dates, pressures, label=labels[0], marker='o', linestyle='', markersize=2)
+        scatter = ax1.scatter(dates, pressures, label=labels[0], s=4)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
     ax1.set_title(
         f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
@@ -367,12 +369,13 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
     deep_scatter_colors = {}
     for api_number, pressure_points in deep_pressure_data.items():
         dates, pressures, labels, colors = zip(*pressure_points)
-        scatter = ax2.scatter(dates, pressures, label=labels[0], s=12)
+        # scatter = ax2.plot(dates, pressures, label=labels[0], marker='o', linestyle='', markersize=2)
+        scatter = ax2.scatter(dates, pressures, label=labels[0], s=4)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
     ax2.set_title(
         f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
         fontsize=14, fontweight='bold')
-    ax2.set_ylabel('Calcualted Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold', labelpad=18)
+    ax2.set_ylabel('Calculated Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold', labelpad=18)
 
     ax1.axvline(x=origin_date, color='red', linestyle='--', linewidth=2)
     ax2.axvline(x=origin_date, color='red', linestyle='--', linewidth=2)
@@ -386,14 +389,14 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
         color = shallow_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
         legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
-                                                             label=label, markersize=10)))
+                                                             label=label, markersize=6)))
 
     for api_number, pressure_points in deep_pressure_data.items():
         _, _, label, _ = pressure_points[0]
         color = deep_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
         legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
-                                                          label=label, markersize=10)))
+                                                          label=label, markersize=6)))
 
     # Custom legend for B3 Well Classification
     classification_legend_handles = [
@@ -418,7 +421,7 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
                                                             f'\nRange: {range_km} km')]
 
     # Add all 3 custom legends to ax1
-    legend = ax1.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_shallow,
+    legend = ax1.legend(handles=classification_legend_handles + custom_legend_handles_shallow + legend_handles_shallow,
                         loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
                         title="Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                         prop={'size': 10})
@@ -433,7 +436,7 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
                                                             f'\nRange: {range_km} km')]
 
     # Add all 3 custom legends to ax2
-    legend2 = ax2.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_deep,
+    legend2 = ax2.legend(handles=classification_legend_handles + custom_legend_handles_deep + legend_handles_shallow,
                          loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
                          title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                          prop={'size': 10})
@@ -473,6 +476,12 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
     for label in ax2.get_xticklabels():
         label.set_rotation(45)
         label.set_ha('center')
+
+    ax1.tick_params(axis='x', direction='out', length=10, width=2, colors='black')
+    ax1.tick_params(axis='y', direction='out', length=10, width=2, colors='black')
+
+    ax2.tick_params(axis='x', direction='out', length=10, width=2, colors='black')
+    ax2.tick_params(axis='y', direction='out', length=10, width=2, colors='black')
 
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.2)
@@ -552,7 +561,8 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
     shallow_scatter_colors = {}
     for api_number, injection_points in shallow_injection_data.items():
         dates, injections, labels, colors = zip(*injection_points)
-        scatter = ax1.scatter(dates, injections, label=labels[0], s=12)
+        # scatter = ax1.plot(dates, injections, label=labels[0], marker='o', linestyle='', markersize=2)
+        scatter = ax1.scatter(dates, injections, label=labels[0], s=4)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
     ax1.set_title(
         f'Reported Monthly Injected Volumes for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
@@ -564,7 +574,8 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
     deep_scatter_colors = {}
     for api_number, injection_points in deep_injection_data.items():
         dates, injections, labels, colors = zip(*injection_points)
-        scatter = ax2.scatter(dates, injections, label=labels[0], s=12)
+        # scatter = ax2.plot(dates, injections, label=labels[0], marker='o', linestyle='', markersize=2)
+        scatter = ax2.scatter(dates, injections, label=labels[0], s=4)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
     ax2.set_title(
         f'Reported Monthly Injected Volumes for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
@@ -583,14 +594,14 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
         color = shallow_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
         legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
-                                                             label=label, markersize=10)))
+                                                             label=label, markersize=6)))
 
     for api_number, injection_points in deep_injection_data.items():
         _, _, label, _ = injection_points[0]
         color = deep_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
         legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
-                                                          label=label, markersize=10)))
+                                                          label=label, markersize=6)))
 
     # Custom legend for B3 Well Classification
     classification_legend_handles = [
@@ -615,7 +626,7 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
                                                             f'\nRange: {range_km} km')]
 
     # Add all 3 custom legends to ax1
-    legend = ax1.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_shallow,
+    legend = ax1.legend(handles=classification_legend_handles + custom_legend_handles_shallow + legend_handles_shallow,
                         loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
                         title="Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                         prop={'size': 10})
@@ -630,7 +641,7 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
                                                             f'\nRange: {range_km} km')]
 
     # Add all 3 custom legends to ax2
-    legend2 = ax2.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_deep,
+    legend2 = ax2.legend(handles=classification_legend_handles + custom_legend_handles_deep + legend_handles_shallow,
                          loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
                          title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                          prop={'size': 10})
@@ -670,6 +681,12 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
     for label in ax2.get_xticklabels():
         label.set_rotation(45)
         label.set_ha('center')
+
+    ax1.tick_params(axis='x', direction='out', length=10, width=2, colors='black')
+    ax1.tick_params(axis='y', direction='out', length=10, width=2, colors='black')
+
+    ax2.tick_params(axis='x', direction='out', length=10, width=2, colors='black')
+    ax2.tick_params(axis='y', direction='out', length=10, width=2, colors='black')
 
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.2)
@@ -748,7 +765,8 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
     shallow_scatter_colors = {}
     for api_number, injection_points in shallow_injection_data.items():
         dates, pressures, labels, colors = zip(*injection_points)
-        scatter = ax1.scatter(dates, pressures, label=labels[0], s=12)
+        # scatter = ax1.plot(dates, pressures, label=labels[0], marker='o', linestyle='', markersize=2)
+        scatter = ax1.scatter(dates, pressures, label=labels[0], s=4)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
     ax1.set_title(
         f'Reported Monthly Pressures Used for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
@@ -760,7 +778,8 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
     deep_scatter_colors = {}
     for api_number, injection_points in deep_injection_data.items():
         dates, pressures, labels, colors = zip(*injection_points)
-        scatter = ax2.scatter(dates, pressures, label=labels[0], s=12)
+        # scatter = ax2.plot(dates, pressures, label=labels[0], marker='o', linestyle='', markersize=2)
+        scatter = ax2.scatter(dates, pressures, label=labels[0], s=4)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
     ax2.set_title(
         f'Reported Monthly Pressures Used for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
@@ -780,7 +799,7 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
         color = shallow_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
         legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
-                                                             label=label, markersize=10)))
+                                                             label=label, markersize=6)))
         # print(f"Shallow label: {label}")
 
     for api_number, injection_points in deep_injection_data.items():
@@ -788,7 +807,7 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
         color = deep_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
         legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
-                                                          label=label, markersize=10)))
+                                                          label=label, markersize=6)))
 
     # # Modify the shallow and deep legend creation loop
     # for api_number, injection_points in shallow_injection_data.items():
@@ -833,7 +852,7 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
                                                             f'\nRange: {range_km} km')]
 
     # Add all legends to ax1
-    legend = ax1.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_shallow,
+    legend = ax1.legend(handles=classification_legend_handles + custom_legend_handles_shallow + legend_handles_shallow,
                         loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
                         title="Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                         prop={'size': 10})
@@ -848,7 +867,7 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
                                                             f'\nRange: {range_km} km')]
 
     # Add all legends to ax2
-    legend2 = ax2.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_deep,
+    legend2 = ax2.legend(handles=classification_legend_handles + custom_legend_handles_deep + legend_handles_shallow,
                          loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
                          title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                          prop={'size': 10})
@@ -886,6 +905,12 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
     for label in ax2.get_xticklabels():
         label.set_rotation(45)
         label.set_ha('center')
+
+    ax1.tick_params(axis='x', direction='out', length=10, width=2, colors='black')
+    ax1.tick_params(axis='y', direction='out', length=10, width=2, colors='black')
+
+    ax2.tick_params(axis='x', direction='out', length=10, width=2, colors='black')
+    ax2.tick_params(axis='y', direction='out', length=10, width=2, colors='black')
 
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.2)

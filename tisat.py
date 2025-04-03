@@ -1491,7 +1491,7 @@ if len(sys.argv) > 1:
 
         print(f"\n[{datetime.datetime.now().replace(microsecond=0)}] Information about the current earthquake:")
         for key, value in earthquake_info.items():
-            print(f"    {key}, {value}")
+            print(f"{key}, {value}")
         print("\n")
         earthquake_latitude = earthquake_info['Latitude']
         earthquake_latitude = earthquake_info['Latitude']
@@ -1536,6 +1536,7 @@ if len(sys.argv) > 1:
             f"\n[{datetime.datetime.now().replace(microsecond=0)}] Click on the following link to fetch earthquake data:\n")
         earthquake_info_url = "http://scdb.beg.utexas.edu/fdsnws/event/1/builder"
         print(earthquake_info_url)
+        print(earthquake_info_url)
 
         webbrowser.open(earthquake_info_url)
         csv_data = input(
@@ -1546,7 +1547,7 @@ if len(sys.argv) > 1:
         print(
             f"\n[{datetime.datetime.now().replace(microsecond=0)}] Information about {earthquake_info['Event ID']}:")
         for key, value in earthquake_info.items():
-            print(f"    {key}: {value}")  # 4 spaces are there for printing intention
+            print(f"{key}: {value}")  # 4 spaces are there for printing intention
         print("\n")
 
         earthquake_latitude = earthquake_info['Latitude']
