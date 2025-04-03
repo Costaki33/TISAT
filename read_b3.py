@@ -1,5 +1,6 @@
 import os
 import csv
+import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.dates as mdates
@@ -9,8 +10,6 @@ from collections import defaultdict
 from friction_loss_calc import friction_loss
 from matplotlib.patches import PathPatch
 from matplotlib.text import TextPath
-from matplotlib.transforms import Affine2D
-import matplotlib.patheffects as PathEffects
 
 
 def classify_well_type(well_lat, well_lon, well_depth, strawn_formation_data, cache={}):
@@ -77,7 +76,50 @@ def haversine_distance_series(lat1_series, lon1_series, lat2_series, lon2_series
     return distance
 
 
-def clean_csv(b3csv: csv, earthquake_information: dict, strawn_formation_info: str):
+def merge_b3_csvs(b3_data_directory, save_directory):
+    """
+    We are going to look inside the entire B3 data library (directory), and find the 'InjectionWell.csv' and
+    'MonthlyInjection.csv' files and merge them together based off of the 'InjectionWellId' column that they
+    share in common
+    :return: Cleaned B3 csv that has monthly injection data for a well with additional well information (lat, lon, etc.)
+    """
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0)}] Merging InjectionWell.csv and MonthlyInjection.csv via inner join for improved well information accessibility in TISAT data processing...")
+    injection_well_df = None
+    # MeasuredDepthFt is the distance along the actual wellbore path (the actual amount of distance in the path)
+    # TVD is just the true vertical depth of the pipeline, but if it curves, the TVD can be something but the MD
+    # is the actual full distance the fluid has to travel before touching the subsurface
+    iw_cols_to_use = ['InjectionWellId', 'APINumber', 'SurfaceHoleLatitude', 'SurfaceHoleLongitude', 'MeasuredDepthFt',
+                      'PermittedWellDepthClassification']
+    monthly_injection_df = None
+    mi_cols_to_use = ['InjectionWellId', 'StartOfMonthDate', 'InjectedLiquidBBL', 'InjectedPSIG']
+    files_in_b3_dir = os.listdir(b3_data_directory)
+
+    # Find the 'InjectionWell' and 'MonthlyInjection' CSVs and read them into Pandas DF's
+    for file in files_in_b3_dir:
+        # print(f"File: {file}")
+        file_path = os.path.join(b3_data_directory, file)
+        if file == "InjectionWell.csv":
+            # low_memory=False means scan the whole column before deciding the data type
+            # Setting it to true will make pandas read the file in chunks, inferring data types incrementally
+            injection_well_df = pd.read_csv(file_path, usecols=iw_cols_to_use, low_memory=False)
+        elif file == "MonthlyInjection.csv":
+            monthly_injection_df = pd.read_csv(file_path, usecols=mi_cols_to_use, low_memory=False)
+        else:
+            continue
+
+    compiled_b3_data = pd.merge(injection_well_df, monthly_injection_df, on='InjectionWellId', how='inner')
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Successfully Merged B3 Data into Pandas df")
+    compiled_b3_data_fp = os.path.join(save_directory, 'merged_B3_Monthly_Data_with_Well_Information.csv')
+    compiled_b3_data.to_csv(compiled_b3_data_fp,
+                            index=False)  # False index prevents pandas from writing DF index to CSV
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Saved Merged B3 DF as CSV at {save_directory}")
+    return compiled_b3_data_fp
+
+
+def clean_csv(b3csv: csv, earthquake_information: dict, strawn_formation_info: str, range_km, year_cutoff):
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0)}] Cleaning B3 CSV file to create a corrected Pandas df for plot generation...")
     b3df = pd.read_csv(b3csv)
     strawn_formation_data = pd.read_csv(strawn_formation_info, delimiter=',')
     earthquake_lat = earthquake_information['Latitude']
@@ -104,6 +146,9 @@ def clean_csv(b3csv: csv, earthquake_information: dict, strawn_formation_info: s
 
     distance = round(haversine_distance_series(earthquake_lat, earthquake_lon, well_lat, well_lon), 2)
     b3df['Distance from Earthquake (km)'] = distance
+    # Now taking the earthquake epicenter and the search radius, we are going to narrow down the wells that are <= range_km
+    b3df = b3df[
+        b3df['Distance from Earthquake (km)'] <= range_km]  # Will only keep the rows where the condition is True
 
     # Rename if existing 'MeasuredDe' to 'MeasuredDepthFt'
     if 'MeasuredDe' in b3df.columns: b3df.rename(columns={"MeasuredDe": "MeasuredDepthFt"}, inplace=True)
@@ -113,6 +158,10 @@ def clean_csv(b3csv: csv, earthquake_information: dict, strawn_formation_info: s
         b3df['StartOfMonthDate'] = pd.to_datetime(b3df['StartOfMonthDate']).dt.normalize()
     elif 'StartOfMon' in b3df.columns:
         b3df['StartOfMon'] = pd.to_datetime(b3df['StartOfMon']).dt.normalize()
+
+    # Now we remove all the rows who's StartOfMonthDate falls within the cutoff time
+    earthquake_time = earthquake_information['Origin Date']
+    b3df = b3df[b3df['StartOfMonthDate'] <= earthquake_time]
 
     well_types_map = {}
     for index, row in b3df.iterrows():
@@ -144,11 +193,13 @@ def clean_csv(b3csv: csv, earthquake_information: dict, strawn_formation_info: s
         depth_classification_map[api_number] = calculated_classification
 
     b3df['CalculatedPermittedDepthClassification'] = b3df['APINumber'].map(depth_classification_map)
-
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Successfully generated cleaned DF. ")
     return b3df
 
 
 def calculate_b3_total_bh_pressure(cleaned_b3df: pd.DataFrame):
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0)}] Calculating Bottomhole Pressure (BHP) for each well in B3 DF.")
     deltaP = 0
     for index, row in cleaned_b3df.iterrows():
         api_number = row['APINumber']
@@ -173,10 +224,12 @@ def calculate_b3_total_bh_pressure(cleaned_b3df: pd.DataFrame):
         cleaned_b3df.loc[index, 'Bottomhole Pressure'] = total_bottomhole_pressure
         cleaned_b3df.loc[index, 'deltaP'] = deltaP
 
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Succesfully calculated BHP for each well.")
     return cleaned_b3df
 
 
 def b3_data_quality_histogram(cleaned_df, range_km, earthquake_info, output_directory=None):
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Generating B3 Quality Control Well Histograms.")
     categories = [
         'Both Volume Injected and Pressure Provided',
         'Only Volume Injected Provided',
@@ -237,6 +290,11 @@ def b3_data_quality_histogram(cleaned_df, range_km, earthquake_info, output_dire
                                          f'well_data_histogram_{api_number}_range{range_km}km.png')
             plt.savefig(plot_filename)
             plt.close()
+    # .ngroups is an attribute of a pandas GroupBy object
+    # Returns the number of groups created by groupby() (Done above)
+    # Tells you how many unique values are in the 'APINumber' column because each unique value creates one group!
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0)}] Successfully created and saved {grouped.ngroups} to file. Stored at {output_directory}")
 
 
 def create_custom_label(text, color, base_offset=0):
@@ -251,10 +309,12 @@ def create_custom_label(text, color, base_offset=0):
     api_patch = PathPatch(path_api, color=color, lw=0)
     distance_patch = PathPatch(path_distance, color='black', lw=0)
 
+    # Returns a list of PathPatch objects
     return [api_patch, distance_patch]
 
 
 def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Plotting BHP for Shallow and Deep Injection Wells.")
     deep_pressure_data = defaultdict(list)
     shallow_pressure_data = defaultdict(list)
     eventID = earthquake_information['Event ID']
@@ -297,7 +357,9 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
         dates, pressures, labels, colors = zip(*pressure_points)
         scatter = ax1.scatter(dates, pressures, label=labels[0], s=12)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax1.set_title(f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_title(
+        f'Calculated Bottomhole Pressure for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax1.set_ylabel('Calculated Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold', labelpad=10)
     ax1.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
 
@@ -307,7 +369,9 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
         dates, pressures, labels, colors = zip(*pressure_points)
         scatter = ax2.scatter(dates, pressures, label=labels[0], s=12)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax2.set_title(f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_title(
+        f'Calculated Bottomhole Pressure for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax2.set_ylabel('Calcualted Bottomhole Pressure (PSI)', fontsize=12, fontweight='bold', labelpad=18)
 
     ax1.axvline(x=origin_date, color='red', linestyle='--', linewidth=2)
@@ -356,7 +420,8 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
     # Add all 3 custom legends to ax1
     legend = ax1.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_shallow,
                         loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
-                        title="Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)", prop={'size': 10})
+                        title="Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
+                        prop={'size': 10})
     legend.set_title("Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                      prop={'size': 12, 'weight': 'bold'})
 
@@ -369,10 +434,11 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
 
     # Add all 3 custom legends to ax2
     legend2 = ax2.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_deep,
-                        loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
-                        title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)", prop={'size': 10})
+                         loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
+                         title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
+                         prop={'size': 10})
     legend2.set_title("Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
-                     prop={'size': 12, 'weight': 'bold'})
+                      prop={'size': 12, 'weight': 'bold'})
 
     legends_list = [ax1.get_legend(), ax2.get_legend()]
     for legend in legends_list:
@@ -444,8 +510,11 @@ def plot_b3_bhp(cleandf, earthquake_information, output_dir, range_km):
                     f"{str(date):<20}\t{str(api_number):<12}\t{str(pressure):<25}\t{well_str:<25}"
                     f"\t{'Shallow - Strawn Formation':<30}\n")
 
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Successfully generated BHP plots. Saved at {output_dir}")
+
 
 def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Generating Reported Injection Volume plots.")
     deep_injection_data = defaultdict(list)
     shallow_injection_data = defaultdict(list)
     eventID = earthquake_information['Event ID']
@@ -485,7 +554,9 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
         dates, injections, labels, colors = zip(*injection_points)
         scatter = ax1.scatter(dates, injections, label=labels[0], s=12)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax1.set_title(f'Reported Monthly Injected Volumes for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_title(
+        f'Reported Monthly Injected Volumes for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax1.set_ylabel('Reported Injected Volumes (BBLs)', fontsize=12, fontweight='bold')
     ax1.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
 
@@ -495,7 +566,9 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
         dates, injections, labels, colors = zip(*injection_points)
         scatter = ax2.scatter(dates, injections, label=labels[0], s=12)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax2.set_title(f'Reported Monthly Injected Volumes for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_title(
+        f'Reported Monthly Injected Volumes for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax2.set_ylabel('Reported Injected Volumes (BBLs)', fontsize=12, fontweight='bold')
 
     ax1.axvline(x=origin_date, color='red', linestyle='--', linewidth=2)
@@ -544,7 +617,8 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
     # Add all 3 custom legends to ax1
     legend = ax1.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_shallow,
                         loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
-                        title="Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)", prop={'size': 10})
+                        title="Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
+                        prop={'size': 10})
     legend.set_title("Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                      prop={'size': 12, 'weight': 'bold'})
 
@@ -557,10 +631,11 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
 
     # Add all 3 custom legends to ax2
     legend2 = ax2.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_deep,
-                        loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
-                        title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)", prop={'size': 10})
+                         loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
+                         title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
+                         prop={'size': 10})
     legend2.set_title("Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
-                     prop={'size': 12, 'weight': 'bold'})
+                      prop={'size': 12, 'weight': 'bold'})
 
     legends_list = [ax1.get_legend(), ax2.get_legend()]
     for legend in legends_list:
@@ -629,9 +704,12 @@ def plot_b3_ijv(cleandf, earthquake_information, output_dir, range_km):
                 f.write(
                     f"{str(date):<20}\t{str(api_number):<12}\t{str(injection):<25}\t{well_str:<25}"
                     f"\t{'Shallow - Strawn Formation':<30}\n")
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0)}] Successfully generated Reported Injection Volume plots. Stored at {output_dir}")
 
 
 def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
+    print(f"[{datetime.datetime.now().replace(microsecond=0)}] Generating Reported Injection Pressure plots.")
     deep_injection_data = defaultdict(list)
     shallow_injection_data = defaultdict(list)
     eventID = earthquake_information['Event ID']
@@ -663,6 +741,7 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
 
         api_color_map[api_number] = color
 
+
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(28, 20))
 
     # Plot for shallow well pressure data
@@ -671,7 +750,9 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
         dates, pressures, labels, colors = zip(*injection_points)
         scatter = ax1.scatter(dates, pressures, label=labels[0], s=12)
         shallow_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax1.set_title(f'Reported Monthly Pressures Used for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax1.set_title(
+        f'Reported Monthly Pressures Used for Shallow Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax1.set_ylabel('Reported Injection Pressure Used (PSIG)', fontsize=12, fontweight='bold')
     ax1.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1, interval=2))
 
@@ -681,7 +762,9 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
         dates, pressures, labels, colors = zip(*injection_points)
         scatter = ax2.scatter(dates, pressures, label=labels[0], s=12)
         deep_scatter_colors[api_number] = scatter.get_edgecolor()
-    ax2.set_title(f'Reported Monthly Pressures Used for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range', fontsize=14, fontweight='bold')
+    ax2.set_title(
+        f'Reported Monthly Pressures Used for Deep Wells near event_{earthquake_information["Event ID"]} in a {range_km} KM Range',
+        fontsize=14, fontweight='bold')
     ax2.set_ylabel('Reported Injection Pressure Used (PSIG)', fontsize=12, fontweight='bold')
 
     # Add earthquake event line
@@ -692,39 +775,40 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
     legend_info_shallow = []
     legend_info_deep = []
 
-    # for api_number, injection_points in shallow_injection_data.items():
-    #     _, _, label, _ = injection_points[0]
-    #     color = shallow_scatter_colors.get(api_number, 'black')
-    #     distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
-    #     legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
-    #                                                          label=label, markersize=10)))
-    #
-    # for api_number, injection_points in deep_injection_data.items():
-    #     _, _, label, _ = injection_points[0]
-    #     color = deep_scatter_colors.get(api_number, 'black')
-    #     distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
-    #     legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
-    #                                                       label=label, markersize=10)))
-
-    # Modify the shallow and deep legend creation loop
     for api_number, injection_points in shallow_injection_data.items():
         _, _, label, _ = injection_points[0]
         color = shallow_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
+        legend_info_shallow.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
+                                                             label=label, markersize=10)))
+        # print(f"Shallow label: {label}")
 
-        # Create custom colored label
-        patches = create_custom_label(label, color)
-        legend_info_shallow.append((distance_from_eq, patches))
-
-    # The same can be done for deep wells
     for api_number, injection_points in deep_injection_data.items():
         _, _, label, _ = injection_points[0]
         color = deep_scatter_colors.get(api_number, 'black')
         distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
+        legend_info_deep.append((distance_from_eq, Line2D([0], [0], marker='o', color='black', markerfacecolor=color,
+                                                          label=label, markersize=10)))
 
-        # Create custom colored label
-        patches = create_custom_label(label, color)
-        legend_info_deep.append((distance_from_eq, patches))
+    # # Modify the shallow and deep legend creation loop
+    # for api_number, injection_points in shallow_injection_data.items():
+    #     _, _, label, _ = injection_points[0]
+    #     color = shallow_scatter_colors.get(api_number, 'black')
+    #     distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
+    #
+    #     # Create custom colored label
+    #     patches = create_custom_label(label, color)
+    #     legend_info_shallow.append((distance_from_eq, patches))
+    #
+    # # The same can be done for deep wells
+    # for api_number, injection_points in deep_injection_data.items():
+    #     _, _, label, _ = injection_points[0]
+    #     color = deep_scatter_colors.get(api_number, 'black')
+    #     distance_from_eq = float(label.split('(')[-1].split()[0])  # Extract distance from label
+    #
+    #     # Create custom colored label
+    #     patches = create_custom_label(label, color)  # Returns a list
+    #     legend_info_deep.append((distance_from_eq, patches))
 
     # Custom legend for B3 Well Classification
     classification_legend_handles = [
@@ -751,7 +835,8 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
     # Add all legends to ax1
     legend = ax1.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_shallow,
                         loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
-                        title="Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)", prop={'size': 10})
+                        title="Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
+                        prop={'size': 10})
     legend.set_title("Shallow Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
                      prop={'size': 12, 'weight': 'bold'})
 
@@ -764,10 +849,11 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
 
     # Add all legends to ax2
     legend2 = ax2.legend(handles=classification_legend_handles + legend_handles_shallow + custom_legend_handles_deep,
-                        loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
-                        title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)", prop={'size': 10})
+                         loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, ncol=2,
+                         title="Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
+                         prop={'size': 10})
     legend2.set_title("Deep Well Information & Earthquake Details\n(Colored by B3 Well Oper. Depth Classification)",
-                     prop={'size': 12, 'weight': 'bold'})
+                      prop={'size': 12, 'weight': 'bold'})
 
     legends_list = [ax1.get_legend(), ax2.get_legend()]
     for legend in legends_list:
@@ -835,3 +921,6 @@ def plot_b3_pressure(cleandf, earthquake_information, output_dir, range_km):
                 f.write(
                     f"{str(date):<20}\t{str(api_number):<12}\t{str(injection):<25}\t{well_str:<25}"
                     f"\t{'Shallow - Strawn Formation':<30}\n")
+
+    print(
+        f"[{datetime.datetime.now().replace(microsecond=0)}] Successfully generated Repored Injection Pressure plots. Stored at {output_dir}")

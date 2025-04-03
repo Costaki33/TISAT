@@ -20,7 +20,7 @@ from pandas.errors import SettingWithCopyWarning
 from subplot_dirs import create_indiv_subplot_dirs
 from well_data_query import closest_wells_to_earthquake
 from read_b3 import clean_csv, b3_data_quality_histogram, calculate_b3_total_bh_pressure, plot_b3_bhp, plot_b3_ijv, \
-    plot_b3_pressure
+    plot_b3_pressure, merge_b3_csvs
 from plot_moving_avg import plot_daily_injection_moving_avg, plot_daily_pressure_moving_avg, \
     plot_calculated_bottomhole_pressure_moving_avg
 
@@ -1460,39 +1460,58 @@ if len(sys.argv) > 1:
         B3 CODE 
         """
         # Prompt user to input the output directory file path
-        output_dir = input("Enter the output directory file path: ")
+        output_dir = input(f"[{datetime.datetime.now().replace(microsecond=0)}] Enter the output directory file path: ")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
         # B3 Data Input
-        b3csvfile_path = input("Please provide B3 data filepath (In CSV format): ")
+        while True:
+            does_merged_b3_data_exist = input(f"[{datetime.datetime.now().replace(microsecond=0)}] Do you already have a 'merged_B3_Monthly_Data_with_Well_Information.csv' file? (Enter True or False) ").lower()
+            if does_merged_b3_data_exist == "true":
+                b3csv_directorypath = input(f"[{datetime.datetime.now().replace(microsecond=0)}] Please provide 'merged_B3_Monthly_Data_with_Well_Information.csv' directory path: ")
+                b3csv_filepath = os.path.join(b3csv_directorypath, 'merged_B3_Monthly_Data_with_Well_Information.csv')
+                break
+            elif does_merged_b3_data_exist == "false":
+                b3_data_directory = input(f"[{datetime.datetime.now().replace(microsecond=0)}] Please provide B3 data folder filepath: ")
+                b3csv_filepath = merge_b3_csvs(b3_data_directory, output_dir)
+                break
+            else:
+                print(f"[{datetime.datetime.now().replace(microsecond=0)}] Invalid Input. Please enter 'true' or 'false'. ")
+
 
         # Earthquake Info in CSV format
-        print("\nClick on the following link to fetch earthquake data:")
+        print(f"\n[{datetime.datetime.now().replace(microsecond=0)}] Click on the following link to fetch earthquake data:")
         earthquake_info_url = "http://scdb.beg.utexas.edu/fdsnws/event/1/builder"
         print(earthquake_info_url)
 
         webbrowser.open(earthquake_info_url)
-        csv_data = input("Enter the earthquake data in CSV format: ")
+        csv_data = input(f"[{datetime.datetime.now().replace(microsecond=0)}] Enter the earthquake data in CSV format: ")
 
         earthquake_info = get_earthquake_info_from_csv(csv_data)
 
-        print(f"\nInformation about the current earthquake:")
-        print(earthquake_info, "\n")
+        print(f"\n[{datetime.datetime.now().replace(microsecond=0)}] Information about the current earthquake:")
+        for key, value in earthquake_info.items():
+            print(f"    {key}, {value}")
+        print("\n")
+        earthquake_latitude = earthquake_info['Latitude']
         earthquake_latitude = earthquake_info['Latitude']
         earthquake_longitude = earthquake_info['Longitude']
         earthquake_origin_date = earthquake_info['Origin Date']
 
-        # User-provided values for range_km
-        range_km = float(input("Enter the range in kilometers (E.g. 20km): "))
 
-        b3df = clean_csv(b3csv=b3csvfile_path, earthquake_information=earthquake_info,
-                         strawn_formation_info=STRAWN_FORMATION_DATA_FILE_PATH)
+        # User-provided values for range_km
+        range_km = float(input(f"[{datetime.datetime.now().replace(microsecond=0)}] Enter the range in kilometers (E.g. 20km): "))
+        year_cutoff = int(input(
+            f"\n[{datetime.datetime.now().replace(microsecond=0)}] Please enter the year cutoff you would like to analyze prior to "
+            "the earthquake: (E.g. 5 yrs): "))
+
+        b3df = clean_csv(b3csv=b3csv_filepath, earthquake_information=earthquake_info,
+                         strawn_formation_info=STRAWN_FORMATION_DATA_FILE_PATH, range_km=range_km, year_cutoff=year_cutoff)
         prepared_b3df = calculate_b3_total_bh_pressure(cleaned_b3df=b3df)
 
         output_file_path = os.path.join(output_dir, "b3_cleaned.csv")
         prepared_b3df.to_csv(output_file_path, index=False)
-
+        print(f"[{datetime.datetime.now().replace(microsecond=0)}] Saved B3 dataframe with calculated BHP to CSV file format. CSV saved at: {output_file_path}")
         b3_data_quality_histogram(prepared_b3df, range_km, earthquake_info, output_dir)
         plot_b3_bhp(prepared_b3df, earthquake_info, output_dir, range_km)
         plot_b3_ijv(prepared_b3df, earthquake_info, output_dir, range_km)
@@ -1500,6 +1519,7 @@ if len(sys.argv) > 1:
         create_indiv_subplot_dirs(base_dir=output_dir)
         gather_well_data(base_path=output_dir, csv_file=output_file_path, earthquake_info=earthquake_info)
 
+        print(f"\n[{datetime.datetime.now().replace(microsecond=0)}] Successfully generated Injection Analysis plots for B3 data. Exiting...")
         quit()
 
     elif sys.argv[1] == 'ivrt':
