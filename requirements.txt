@@ -1,6 +1,8 @@
+colebrook
+matplotlib
 numpy
 pandas
-matplotlib
-requests
-colebrook
 pint
+pyproj
+scipy
+selenium

@@ -26,7 +26,6 @@ from plot_moving_avg import plot_daily_injection_moving_avg, plot_daily_pressure
 
 # GLOBAL VARIABLES AND FILE PATHS
 STRAWN_FORMATION_DATA_FILE_PATH = '/home/skevofilaxc/Documents/earthquake_data/TopStrawn_RD_GCSWGS84.csv'
-OUTPUT_DIR = '/home/skevofilaxc/Documents/earthquake_plots'
 
 # Filter out SettingWithCopyWarning
 warnings.filterwarnings("ignore", category=SettingWithCopyWarning)
