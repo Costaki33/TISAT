@@ -77,28 +77,32 @@ This directory will hold critical data resources that the tool will reference fo
 - **Give me Well Information in a given Timeperiod:** User provides an analysis timeperiod, which is the time before the earthquake one would like to observe. 
 
 - **Plot Generation:**
-  - **Data Quality Analysis:**
-    - **Complete Data:** Well Injection BBL and Avg Pressure PSIG is available.
-    - **Incomplete Data:** Well Injection BBL available but Avg Pressure PSIG is missing.
-    - **Missing Data:** Both Well Injection BBL and Avg Pressure PSIG are missing.
+  - **Injection Data is Cleaned**
+    - Injection Data only is focused on the requested timeperiod 
+    - Identification of faulty records (Ex. missing pairs of injection volumes and pressures) and the creation of Well Data Quality Histograms: 
+      - **Well Data Quality Histograms:**
+        - Based on the quality of available injection data for each utilized well, well data quality histograms are created to enable users to quickly 
+        visualize data quality. Data quality is organized into 3 categories and are visualized on a histogram which are saved to file: 
+          - **Complete Data:** Well Injection BBL and Avg Pressure PSIG is available.
+          - **Incomplete Data:** Well Injection BBL available but Avg Pressure PSIG is missing.
+          - **Missing Data:** Both Well Injection BBL and Avg Pressure PSIG are missing.
 
-  - **Calculate Bottomhole Pressure:** Calculates bottomhole pressure using the formula provided by Jim Moore (RRC):
+  - **Calculate Bottomhole Pressure:** TISAT calculates bottomhole pressure using the formula provided by Jim Moore (RRC):
       ```python
       Bottomhole pressure = surface pressure + hydrostatic pressure - deltaP
       ```
-      - **Hydrostatic pressure formula:** `0.465 psi/ft X depth (ft)`
+      - **Hydrostatic pressure formula:** `0.465 psi/ft X depth (ft)`*
       - **Friction loss (DeltaP):** Computed using the Colebrook-White equation for turbulent flow.
    
      *Note regarding bottomhole pressure calculation, the equation above is the ideal formula to be used when calculating. However, due to either a lack of precise of well depth information available, when calculating
       deltaP (friction loss), the depth used may either be the **depth of the packer** or the **depth of the well**. Ideally it is the depth of the packer, but if not available the depth of the well is used.*
       *Please review the `friction_loss_calc.py` and `tisat.py` to get a better understanding of how we handle for lack of well depth information*
   
-  - **Well Sorting:** Wells are sorted as deep or shallow based on the Strawn Formation, with shallow wells plotted on the top of the figure and vice versa for deep wells.
+  - **Well Depth Classification:** Wells are classified as either deep or shallow based on the Strawn Formation, with shallow wells plotted on the top of the figure and vice versa for deep wells.
 
-  - **Visualization:** Generates plots and histograms for injection pressure trends, differentiating between deep and shallow wells.
+  - **Visualization:** Well Data Quality Histograms, Shallow and Deep Injection Volume, Pressure, and Bottomhole Pressure (with and without Moving Average) plots, and individual well Volume and Pressure plots are generated and saved to file.
 
 ## Running the Code
-
 
 Run the following in your code environment:
 ### Data Source: TexNet 
@@ -107,20 +111,26 @@ python3 tisat.py ivrt
 ```
 It will prompt you to enter a directory path where the outputted files will go. If it doesn't exist, TISAT will automatically make the directory for you in the working space where TISAT is: 
 ```bash
-Enter the output directory file path: 
+[2025-04-07 10:35:19] Please enter an file path you would like to store all injection well information under:
 ```
 It will then prompt you to input a TexNet event ID and fetch earthquake data from the URL Builder. The script will automatically open the URL Builder: 
 ```bash
-Click on the following link to fetch earthquake data:
+[2025-04-07 10:35:53] Click on the following link to fetch earthquake data:
 http://scdb.beg.utexas.edu/fdsnws/event/1/builder
-Enter the earthquake data in CSV format: 
+[2025-04-07 10:35:53] Please enter the selected earthquake in CSV format: 
 ```
-CSV file refers to the format of the earthquake. For example:
+CSV format refers to the format of the earthquake event. For example:
 ```bash
-Enter the earthquake data in CSV format: texnet2024ophu,2024-07-26T14:28:29.143846Z,32.76580810546875,-100.65941787347559,3.2958984375,5.136142178709405,"Western Texas"
+Enter the earthquake data in CSV format: texnet2025fgzl,2025-03-16T23:19:36.954421Z,31.686719341492186,-104.23914522043873,7.586669921875,2.0349857115691612,"Western Texas"
 
-Information about the current earthquake:
-{'Event ID': 'texnet2024ophu', 'Latitude': 32.76580810546875, 'Longitude': -100.65941787347559, 'Origin Date': '2024-07-26', 'Origin Time': '14:28:29', 'Local Magnitude': 5.14} 
+[2025-04-07 10:36:13] Information about texnet2025fgzl:
+Event ID: texnet2025fgzl
+Latitude: 31.686719341492186
+Longitude: -104.23914522043873
+Origin Date: 2025-03-16
+Origin Time: 23:19:36
+Local Magnitude: 2.1
+
 ```
 If you do not have access to the TexNet URL Builder (you must be on the BEG VPN to access), there is a format that the URL Builder uses to generate the CSV format, which is as follows: 
 ```bash
@@ -134,12 +144,13 @@ You can go to the [TexNet Catalog](https://catalog.texnet.beg.utexas.edu/), sear
 
 You then will be asked to input a search range in kilometers, which will allow TISAT to gather all well information within said radius, with the starting point being the earthquake epicenter:
 ```bash
-Enter the range in kilometers (E.g. 20km): 
+[2025-04-07 10:36:13] Please enter your search radius in kilometers (E.g. 20km): 
 ```
 Finally, you will be asked to send a year cutoff for analysis leading up to the earthquake. Do not make the cutoff request longer than the total length of available prior information that is available to the TexNet Injection Reporting Tool, as there will be a lack of information the plots can reference. For example, the TexNet Injection Reporting Tool as information up until 2017. It is not recommended to do a year prior than that on this data source.  
 ```bash
-Enter the year cutoff you would like to analyze prior to the earthquake: (E.g. 5 yrs): 
+[2025-04-07 10:38:11] Please enter the year cutoff you would like to analyze prior to the earthquake: (E.g. 5 yrs):
 ```
+After this the code will execute and generate the daily injection plots and data quality histograms, which are saved to your inputted save filepath. 
 
 ### Data Source: B3 
 ```bash
@@ -147,9 +158,41 @@ python3 tisat.py b3
 ```
 After prompting for an output directory, TISAT will ask the following: 
 ```bash
-Please provide B3 data filepath (In CSV format):
+[2025-04-07 10:38:50] Enter the output directory file path:
 ```
-If you have access to a B3 subscription, please enter the MonthlyInjection data as a CSV file to be used as the data source. 
+You will then be followed with the following prompt: 
+```bash
+[2025-04-07 10:39:16] Do you already have a 'merged_B3_Monthly_Data_with_Well_Information.csv' file? (Enter True or False) 
+```
+This is a custom merged CSV file created by TISAT that will merge the WellInformation.csv and MonthlyInjection.csv files via a inner merge using the 'InjectionWellId' as the common shared column. 
+For future runs this file can be used again. If you enter 'True', TISAT will ask you to provide the **parent directory path, not the file path explicitly**. 
+```bash
+[2025-04-07 10:44:11] Please provide 'merged_B3_Monthly_Data_with_Well_Information.csv' directory path:
+```
+If you do not have this file yet (Most likely this is your first run through), enter 'False'. You will be prompted to enter the directory path where all files generated by B3 are: 
+```bash
+[2025-04-07 10:45:05] Please provide B3 data folder filepath: /home/skevofilaxc/Documents/earthquake_data/B3_Midland_Culberson
+```
+This will prompt TISAT to create 'merged_B3_Monthly_Data_with_Well_Information.csv' in your save directory path: 
+```bash
+[2025-04-07 10:47:02] Successfully Merged B3 Data into Pandas df
+[2025-04-07 10:48:07] Saved Merged B3 DF as CSV at /home/skevofilaxc/Documents/earthquake_plots/rrc_pres/texnet2025fgzl_b3
+```
+Similar to the IVRT data source (above), provide the earthquake event data in CSV format: 
+```bash
+[2025-04-07 10:48:07] Click on the following link to fetch earthquake data:
+http://scdb.beg.utexas.edu/fdsnws/event/1/builder
+[2025-04-07 10:48:07] Enter the earthquake data in CSV format: texnet2025fgzl,2025-03-16T23:19:36.954421Z,31.686719341492186,-104.23914522043873,7.586669921875,2.0349857115691612,"Western Texas"
+```
+Enter search radius and analysis time period:
+```bash
+[2025-04-07 10:49:10] Enter the range in kilometers (E.g. 20km): 15
+
+[2025-04-07 10:49:21] Please enter the year cutoff you would like to analyze prior to the earthquake: (E.g. 5 yrs): 5
+```
+After this the code will execute and generate the monthly injection plots and data quality histograms, which are saved to your inputted save filepath.
+
+
 
 ## Outputs
 The script outputs:
